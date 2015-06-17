@@ -7,5 +7,5 @@ setup(name='suitcase',
       description='Tools for exporting data from NSLS-II',
       url='http://github.com/NSLS-II/',
       platforms='Cross platform (Linux, Mac OSX, Windows)',
-      requires=['six']
+      requires=['six', 'h5py', 'numpy', 'json', 'dataportal']
       )
