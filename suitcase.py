@@ -4,8 +4,9 @@ import warnings
 import h5py
 import json
 import numpy as np
+import metadatastore
 from metadatastore.commands import find_events
-from dataportal.broker import fill_event
+from dataportal.broker.simple_broker import fill_event
 
 
 def export(headers, filename):
@@ -31,7 +32,7 @@ def export(headers, filename):
             group = f.create_group(top_group_name)
             _safe_attrs_assignment(group, header)
             for i, descriptor in enumerate(descriptors):
-                desc_group = group.create_group('Event Stream {0}'.format(i))
+                desc_group = group.create_group('Event_Stream_{0}'.format(i))
                 data_keys = descriptor.pop('data_keys')
                 _safe_attrs_assignment(desc_group, descriptor)
                 events = list(find_events(descriptor=descriptor))
@@ -39,34 +40,30 @@ def export(headers, filename):
                 desc_group.create_dataset('event_times', event_times)
                 data_group = desc_group.create_group('data')
                 ts_group = desc_group.create_group('timestamps')
+                [fill_event(e) for e in events]
                 for key, value in data_keys.items():
+                    print('data key = %s' % key)
                     timestamps = [e['timestamps'][key] for e in events]
                     ts_group.create_dataset(key, data=timestamps)
-                    for event in events:
-                        fill_event(event)  # fill any external data, in place
                     data = [e['data'][key] for e in events]
                     dataset = data_group.create_dataset(key, data=data)
                     # Put contents of this data key (source, etc.)
                     # into an attribute on the associated data set.
-                    value['data_broker_shape'] = value.pop('shape')
-                    value['data_broker_dtype'] = value.pop('dtype')
-                    print(value)
-                    _safe_attrs_assignment(dataset, value)
+                    # value['data_broker_shape'] = value.pop('shape')
+                    # value['data_broker_dtype'] = value.pop('dtype')
+                    # _safe_attrs_assignment(dataset, dict(value))
 
 
 def _clean_dict(d):
     for k, v in list(d.items()):
-        print(repr(k), repr(v))
         # Store dictionaries as JSON strings.
         if isinstance(v, MutableMapping):
             d[k] = _clean_dict(d[k])
             continue
-        print(v)
         try:
-            print(json.dumps(v))
+            json.dumps(v)
         except TypeError:
             d[k] = str(v)
-            print(str(v))
     return d
 
 
