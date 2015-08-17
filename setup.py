@@ -1,7 +1,9 @@
+import versioneer
 from setuptools import setup
 
 setup(name='suitcase',
-      version='0.1.0',
+      version=versioneer.get_version(),
+      cmdclass=versioneer.get_cmdclass(),
       author='Brookhaven National Laboratory',
       py_modules=['suitcase'],
       description='Tools for exporting data from NSLS-II',
