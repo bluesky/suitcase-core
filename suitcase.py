@@ -63,7 +63,7 @@ def _clean_dict(d):
             d[k] = _clean_dict(d[k])
             continue
         try:
-            d[k] = json.dumps(v)
+            json.dumps(v)
         except TypeError:
             d[k] = str(v)
     return d
@@ -81,4 +81,4 @@ def _safe_attrs_assignment(node, d):
         # Fallback: Save the repr, which in many cases can be used to
         # recreate the object.
         except TypeError:
-            node.attrs[key] = repr(value)
+            node.attrs[key] = json.dumps(value)
