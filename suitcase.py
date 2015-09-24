@@ -39,16 +39,20 @@ def export(headers, filename):
 
                 events = list(find_events(descriptor=descriptor))
                 event_times = [e['time'] for e in events]
-                desc_group.create_dataset('time', data=event_times)
+                desc_group.create_dataset('time', data=event_times,
+                                          compression='gzip', fletcher32=True)
                 data_group = desc_group.create_group('data')
                 ts_group = desc_group.create_group('timestamps')
                 [fill_event(e) for e in events]
                 for key, value in data_keys.items():
                     value = dict(value)
                     timestamps = [e['timestamps'][key] for e in events]
-                    ts_group.create_dataset(key, data=timestamps)
+                    ts_group.create_dataset(key, data=timestamps,
+                                            compression='gzip',
+                                            fletcher32=True)
                     data = [e['data'][key] for e in events]
-                    dataset = data_group.create_dataset(key, data=data)
+                    dataset = data_group.create_dataset(
+                        key, data=data, compression='gzip', fletcher32=True)
                     # Put contents of this data key (source, etc.)
                     # into an attribute on the associated data set.
                     _safe_attrs_assignment(dataset, dict(value))
