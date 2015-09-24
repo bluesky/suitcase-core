@@ -6,6 +6,8 @@ from metadatastore.commands import find_events
 from dataportal.broker.simple_broker import fill_event
 
 
+__version__ = "v0.2.1"
+
 def export(headers, filename):
     """
     Parameters
