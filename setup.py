@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='suitcase',
-      version='0.2.0',
+      version='0.2.1',
       author='Brookhaven National Laboratory',
       py_modules=['suitcase'],
       description='Tools for exporting data from NSLS-II',
