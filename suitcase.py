@@ -44,7 +44,6 @@ def export(headers, filename):
                 ts_group = desc_group.create_group('timestamps')
                 [fill_event(e) for e in events]
                 for key, value in data_keys.items():
-                    print('data key = %s' % key)
                     value = dict(value)
                     timestamps = [e['timestamps'][key] for e in events]
                     ts_group.create_dataset(key, data=timestamps)
