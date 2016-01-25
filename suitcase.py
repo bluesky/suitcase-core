@@ -3,7 +3,7 @@ import warnings
 import h5py
 import json
 from metadatastore.commands import find_events
-from dataportal.broker.simple_broker import fill_event
+from databroker.databroker import fill_event
 
 
 __version__ = "v0.2.1"
