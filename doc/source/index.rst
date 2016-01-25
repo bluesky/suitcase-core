@@ -24,7 +24,7 @@ Usage Example
     suitcase.export(last_run, 'myfile.h5')
 
 The first argument may be a single Header or a list of Headers. This is the
-API documentatio for the only function in suitcase:
+API documentation for the only function in suitcase:
 
 .. currentmodule:: suitcase
 
