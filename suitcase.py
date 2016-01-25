@@ -6,7 +6,7 @@ from metadatastore.commands import find_events
 from databroker.databroker import fill_event
 
 
-__version__ = "v0.2.1"
+__version__ = "0.2.2"
 
 def export(headers, filename):
     """
