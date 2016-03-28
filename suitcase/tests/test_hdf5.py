@@ -1,5 +1,5 @@
 
-from metadatastore.test.utils import mds_setup, mds_teardown
+from metadatastore.utils.testing import mds_setup, mds_teardown
 from metadatastore.examples.sample_data import (multisource_event,
                                                 temperature_ramp)
 from databroker import db, get_table
