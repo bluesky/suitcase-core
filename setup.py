@@ -1,11 +1,20 @@
-from setuptools import setup
+from setuptools import setup, find_packages
+import versioneer
 
-setup(name='suitcase',
-      version='0.2.2',
-      author='Brookhaven National Laboratory',
-      py_modules=['suitcase'],
-      description='Tools for exporting data from NSLS-II',
-      url='http://github.com/NSLS-II/',
-      platforms='Cross platform (Linux, Mac OSX, Windows)',
-      requires=['six', 'h5py', 'numpy', 'json', 'dataportal']
-      )
+setup(
+    name='suitcase',
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass()
+    author='Brookhaven National Laboratory',
+    modules=find_packages(),
+    description='Tools for exporting data from NSLS-II',
+    url='http://github.com/NSLS-II/suitcase',
+    platforms='Cross platform (Linux, Mac OSX, Windows)',
+    install_requires=[
+        'six',
+        'h5py',
+        'numpy',
+        'json',
+        'databroker'
+      ]
+)
