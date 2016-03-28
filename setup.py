@@ -4,7 +4,7 @@ import versioneer
 setup(
     name='suitcase',
     version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass()
+    cmdclass=versioneer.get_cmdclass(),
     author='Brookhaven National Laboratory',
     modules=find_packages(),
     description='Tools for exporting data from NSLS-II',
@@ -16,5 +16,5 @@ setup(
         'numpy',
         'json',
         'databroker'
-      ]
+    ],
 )
