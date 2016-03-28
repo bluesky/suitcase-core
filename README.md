@@ -3,7 +3,7 @@
 Suitcase contains tools for exporting data from NSLS-II. It aims to support
 two important use cases:
 
-1. Export all data and metadata to an HDF5 file. In priciple this file can be
+1. Export all data and metadata to an HDF5 file. In principle this file can be
    organized any way the user desires. For now, the file reflects the NSLS-II
    Document specification, but we are *not* promoting this as a standard
    exchange format. There are plans to support (possibly lossy) conversion to
