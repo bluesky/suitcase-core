@@ -18,7 +18,7 @@ before_install:
   - chmod +x ~/scripts/*.sh
   # install miniconda/anaconda-client/conda-build
   - . ~/scripts/install-miniconda.sh
-  # - . ~/scripts/init-filestore.sh
+  - . ~/scripts/init-metadatastore.sh
 
 install:
   - export GIT_FULL_HASH=`git rev-parse HEAD`
@@ -36,6 +36,7 @@ install:
 
 script:
   - coverage run run_tests.py
+  - coverage report -m
 
 after_success:
   - codecov
