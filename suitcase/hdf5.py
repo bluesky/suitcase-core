@@ -3,7 +3,7 @@ import warnings
 import h5py
 import json
 from metadatastore.commands import find_events
-from databroker.databroker import fill_event
+from databroker.databroker import fill_event, Header
 
 
 __version__ = "0.2.2"
@@ -17,6 +17,8 @@ def export(headers, filename):
     filename : string
         path to a new or existing HDF5 file
     """
+    if isinstance(headers, Header):
+        headers = [headers]
     with h5py.File(filename) as f:
         for header in headers:
             header = dict(header)
