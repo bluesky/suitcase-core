@@ -14,7 +14,6 @@ setup(
         'six',
         'h5py',
         'numpy',
-        'json',
         'databroker'
     ],
 )
