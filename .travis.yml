@@ -40,9 +40,7 @@ install:
 script:
   - coverage run run_tests.py
   - coverage report -m
+  - . ~/scripts/debug.sh
 
 after_success:
   - codecov
-
-after_failure:
-  - . ~/scripts/debug.sh
