@@ -29,11 +29,13 @@ install:
   - conda update conda
   - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage
   - source activate testenv
-  - conda remove metadatastore
+  # add the --force flag so that conda >4 doesn't remove the pacakges that
+  # depend on metadatastore
+  - conda remove metadatastore --force
   # install metadatastore master until there is a tagged version that contains
   # https://github.com/NSLS-II/metadatastore/pull/203 because
   # `metadatastore.utils.testing` was moved to `metadatastore.test.utils`
-  - https://github.com/NSLS-II/metadatastore/zipball/master#egg=metadatastore
+  - pip install https://github.com/NSLS-II/metadatastore/zipball/master#egg=metadatastore
   - pip install codecov
   - python setup.py install
   # Need to clean the python build directory (and other cruft) or pytest is
