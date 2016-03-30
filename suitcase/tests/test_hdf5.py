@@ -27,14 +27,17 @@ def shallow_header_verify(hdf_path, header):
             # make sure all keys are in each descriptor
             for key in descriptor.data_keys:
                 data_path = "%s/data/%s" % (descriptor_path, key)
+                # make sure that the data path is in the file
                 assert data_path in f
-                # make sure the data is equivalent
+                # make sure the data is equivalent to what comes out of the
+                # databroker
                 hdf_data = np.asarray(f[data_path])
                 broker_data = table[key].dropna().values
-                print(hdf_data)
-                print(broker_data)
-                raise Exception()
                 assert all(hdf_data == broker_data)
+                # make sure the data is sorted in chronological order
+                timestamps_path = "%s/timestamps/%s" % (descriptor_path, key)
+                timestamps = np.asarray(f[timestamps_path])
+                assert all(np.diff(timestamps) > 0)
 
 
 def test_hdf5_export_single():
