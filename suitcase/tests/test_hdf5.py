@@ -1,5 +1,5 @@
 
-from metadatastore.utils.testing import mds_setup, mds_teardown
+from metadatastore.test.utils import mds_setup, mds_teardown
 from metadatastore.examples.sample_data import (multisource_event,
                                                 temperature_ramp)
 from databroker import db, get_table
@@ -29,8 +29,12 @@ def shallow_header_verify(hdf_path, header):
                 data_path = "%s/data/%s" % (descriptor_path, key)
                 assert data_path in f
                 # make sure the data is equivalent
-                data = np.asarray(f[data_path])
-                assert all(data == table[key].dropna().values)
+                hdf_data = np.asarray(f[data_path])
+                broker_data = table[key].dropna().values
+                print(hdf_data)
+                print(broker_data)
+                raise Exception()
+                assert all(hdf_data == broker_data)
 
 
 def test_hdf5_export_single():
