@@ -28,12 +28,12 @@ install:
   - export GIT_FULL_HASH=`git rev-parse HEAD`
   - conda update conda
   - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage
+  - source activate testenv
   - conda remove metadatastore
   # install metadatastore master until there is a tagged version that contains
   # https://github.com/NSLS-II/metadatastore/pull/203 because
   # `metadatastore.utils.testing` was moved to `metadatastore.test.utils`
   - https://github.com/NSLS-II/metadatastore/zipball/master#egg=metadatastore
-  - source activate testenv
   - pip install codecov
   - python setup.py install
   # Need to clean the python build directory (and other cruft) or pytest is

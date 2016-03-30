@@ -19,7 +19,11 @@ def teardown_function(function):
 def shallow_header_verify(hdf_path, header):
     table = get_table(header)
     with h5py.File(hdf_path) as f:
+        # make sure that the header is actually in the file that we think it is
+        # supposed to be in
         assert header.start.uid in f
+        assert dict(header.start) == eval(f[header.start.uid].attrs['start'])
+        assert dict(header.stop) == eval(f[header.start.uid].attrs['stop'])
         # make sure the descriptors are all in the hdf output file
         for descriptor in header.descriptors:
             descriptor_path = '%s/%s' % (header.start.uid, descriptor.uid)
