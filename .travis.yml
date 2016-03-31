@@ -1,15 +1,53 @@
 language: python
 
+services:
+  - mongodb
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+
 python:
   - 2.7
   - 3.4
+  - 3.5
+
+before_install:
+  # clone conda install/build/upload helper scripts and make them executable
+  - git clone https://github.com/NSLS-II/nsls2-ci ~/scripts
+  - chmod +x ~/scripts/*.sh
+  # install miniconda/anaconda-client/conda-build
+  - . ~/scripts/install-miniconda.sh
+  # remove conda-forge because h5py and hdf5 are broken packages. gzip does not work
+  # if I use the packages from the conda-forge channel
+  - conda config --remove channels conda-forge --force
+  - . ~/scripts/init-metadatastore.sh
+  - . ~/scripts/init-filestore.sh
 
 install:
+  - export GIT_FULL_HASH=`git rev-parse HEAD`
+  - conda update conda
+  - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage
+  - source activate testenv
+  # add the --force flag so that conda >4 doesn't remove the pacakges that
+  # depend on metadatastore
+  - conda remove metadatastore --force
+  # install metadatastore master until there is a tagged version that contains
+  # https://github.com/NSLS-II/metadatastore/pull/203 because
+  # `metadatastore.utils.testing` was moved to `metadatastore.test.utils`
+  - pip install https://github.com/NSLS-II/metadatastore/zipball/master#egg=metadatastore
+  - pip install codecov
   - python setup.py install
-  - pip install coveralls six
+  # Need to clean the python build directory (and other cruft) or pytest is
+  # going to find the build directory and get confused why there are two sets
+  # of every test file
+  - git clean -xfd
+
 
 script:
-  - python run_tests.py
+  - coverage run run_tests.py
+  - coverage report -m
+  - . ~/scripts/debug.sh
 
 after_success:
-  coveralls
+  - codecov

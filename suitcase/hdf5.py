@@ -2,8 +2,8 @@ from collections import Mapping
 import warnings
 import h5py
 import json
-from metadatastore.commands import find_events
-from databroker.databroker import fill_event
+from metadatastore.commands import get_events_generator
+from databroker.databroker import fill_event, Header
 
 
 __version__ = "0.2.2"
@@ -17,6 +17,8 @@ def export(headers, filename):
     filename : string
         path to a new or existing HDF5 file
     """
+    if isinstance(headers, Header):
+        headers = [headers]
     with h5py.File(filename) as f:
         for header in headers:
             header = dict(header)
@@ -39,7 +41,7 @@ def export(headers, filename):
                 data_keys = descriptor.pop('data_keys')
                 _safe_attrs_assignment(desc_group, descriptor)
 
-                events = list(find_events(descriptor=descriptor))
+                events = list(get_events_generator(descriptor=descriptor))
                 event_times = [e['time'] for e in events]
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)
