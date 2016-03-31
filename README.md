@@ -1,4 +1,9 @@
+[![Build Status](https://travis-ci.org/NSLS-II/suitcase.svg?branch=master)](https://travis-ci.org/NSLS-II/suitcase)
+[![codecov.io](https://codecov.io/github/NSLS-II/suitcase/coverage.svg?branch=master)](https://codecov.io/github/NSLS-II/suitcase?branch=master)
+[![Anaconda-Server Badge](https://anaconda.org/lightsource2/suitcase/badges/version.svg)](https://anaconda.org/lightsource2/suitcase)
+[![Anaconda-Server Badge](https://anaconda.org/lightsource2/suitcase/badges/installer/conda.svg)](https://conda.anaconda.org/lightsource2)
 # Suitcase
+
 
 Suitcase contains tools for exporting data from NSLS-II. It aims to support
 two important use cases:
