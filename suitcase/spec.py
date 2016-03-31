@@ -7,6 +7,13 @@ import pandas as pd
 import os
 from datetime import datetime
 
+# need callback base from bluesky
+try:
+    from bluesky.callbacks import CallbackBase
+except ImportError as ie:
+    print("bluesky.callbacks package is required for some spec functionality.")
+
+
 # Dictionary that maps a spec metadata line to a specific lambda function
 # to parse it. This only works for lines whose contents can be mapped to a
 # single semantic meaning.  e.g., the "spec command" line
@@ -273,3 +280,140 @@ class Specscan:
 {} points in the scan
 {} """.format(self.scan_id, self.scan_command + " " + " ".join(self.scan_args),
               len(self), self.time_from_date)
+
+
+def spec_to_document(specfile, scan_ids=None):
+    """Convert one or more scans in a specfile into documents
+
+    Parameters
+    ----------
+    specfile : str
+        The path to the spec file that should be loaded
+    scan_ids : int or iterable, optional
+        The scan ids that should be converted into documents
+
+    Yields
+    ------
+    documents
+        Yields a stream of documents in order:
+        1. RunStart
+        2. baseline Descriptor
+        3. baseline Event
+        4. primary Descriptor
+        5. primary Events (until rows in spec scan are exhausted)
+        6. RunStop
+
+    Notes
+    -----
+    If multiple scan_ids are requested, then documents will be emitted in the
+    order listed above until all scan_ids have been processed
+    """
+    if isinstance(specfile, str):
+        specfile = Specfile(filename=specfile)
+    if isinstance(specfile, Specfile):
+        # grab the scans that we want to convert
+        if scan_ids is None:
+            scans_to_process = specfile
+            break
+        try:
+            scan_ids[0]
+        except TypeError:
+            scan_ids = [scan_ids]
+        finally:
+            scans_to_process = [specfile[sid] for sid in scan_ids]
+    elif isinstance(specfile, Specscan):
+        scans_to_process = [specfile]
+
+    for scan in scans_to_process:
+        # do the conversion!
+        document_name, document = next(run_start(scan))
+        start_uid = document['uid']
+        # yield the start document
+        yield document_name, document
+        # yield the baseline descriptor and its event
+        yield from baseline(specscan, start_uid)
+        num_events = 0
+        for document_name, document in events(specscan, start_uid):
+            if document_name == 'event':
+                num_events += 1
+            # yield the descriptor and events
+            yield document_name, document
+        # make sure the run was finished before it was stopped
+        reason = 'success'
+        if num_events != scan.num_points:
+            reason = 'abort'
+            print('scan %s only has %s/%s points. Assuming scan was aborted. '
+                  'start_uid=%s' % (specscan.scan_id, len(primary_events),
+                                    specscan.num_points, start_uid))
+        # yield the stop document
+        yield from stop(specscan, start_uid, reason=reason)
+
+
+def run_start(specscan, **md):
+    run_start_dict = {
+        'time': specscan.time_from_date.timestamp(),
+        'scan_id': specscan.scan_id,
+        'uid': str(uuid.uuid4()),
+        'specpath': specscan.specfile.filename,
+        'owner': specscan.specfile.parsed_header['user'],
+        'plan_args': specscan.scan_args,
+        'scan_type': specscan.scan_command,
+    }
+    run_start_dict.update(**md)
+    yield 'run_start', run_start_dict
+
+
+def baseline(specscan, start_uid):
+    timestamp = specscan.time_from_date.timestamp()
+    data_keys = {}
+    data = {}
+    timestamps = {}
+    for obj_name, human_name, value in zip(
+            specscan.specfile.parsed_header['motor_spec_names'],
+            specscan.specfile.parsed_header['motor_human_names'],
+            specscan.motor_values):
+        data_keys[obj_name] = {'dtype': 'number',
+                               'shape': [],
+                               'source': human_name}
+        data[obj_name] = value
+        timestamps[obj_name] = timestamp
+    data_keys.update({k: {'dtype': 'number',
+                          'shape': [],
+                          'source': k} for k in 'hkl'})
+    data.update({k: v for k, v in zip('hkl', specscan.hkl)})
+    timestamps.update({k: timestamp for k in 'hkl'})
+    descriptor = dict(run_start=start_uid, data_keys=data_keys,
+                      time=timestamp, uid=str(uuid.uuid4()),
+                      name='baseline')
+    yield 'descriptor', descriptor
+    event = dict(descriptor=descriptor_uid, seq_num=0, time=timestamp,
+                 data=data, timestamps=timestamps, uid=str(uuid.uuid4()))
+    yield 'event', event
+
+
+def events(specscan, start_uid):
+    timestamp = specscan.time_from_date.timestamp()
+    data_keys = {}
+    data = {}
+    timestamps = {}
+
+    data_keys = {col: {'dtype': 'number', 'shape': [], 'source': col}
+                 for col in specscan.col_names}
+    descriptor_uid = dict(run_start=start_uid, data_keys=data_keys,
+                          time=timestamp, uid=str(uuid.uuid4()),
+                          name='primary')
+    yield 'descriptor', descriptor_uid
+    timestamps = {col: timestamp for col in specscan.col_names}
+    for seq_num, (x, row_series) in enumerate(specscan.scan_data.iterrows()):
+        data = {col: data for col, data in zip(row_series.index, row_series[:])}
+        event = dict(data=data, descriptor=descriptor_uid,
+                     seq_num=seq_num, time=timestamp + data['Epoch'],
+                     timestamps=timestamps, uid=str(uuid.uuid4()))
+        yield 'event', event
+
+
+def stop(specscan, start_uid, **md):
+    timestamp = specscan.time_from_date.timestamp()
+    stop = dict(run_start=start_uid, time=timestamp, uid=str(uuid.uuid4()),
+                **md)
+    yield 'stop', stop
