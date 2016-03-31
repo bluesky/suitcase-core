@@ -314,13 +314,13 @@ def spec_to_document(specfile, scan_ids=None):
         # grab the scans that we want to convert
         if scan_ids is None:
             scans_to_process = specfile
-            break
-        try:
-            scan_ids[0]
-        except TypeError:
-            scan_ids = [scan_ids]
-        finally:
-            scans_to_process = [specfile[sid] for sid in scan_ids]
+        else:
+            try:
+                scan_ids[0]
+            except TypeError:
+                scan_ids = [scan_ids]
+            finally:
+                scans_to_process = [specfile[sid] for sid in scan_ids]
     elif isinstance(specfile, Specscan):
         scans_to_process = [specfile]
 
