@@ -2,8 +2,8 @@
 [![codecov.io](https://codecov.io/github/NSLS-II/suitcase/coverage.svg?branch=master)](https://codecov.io/github/NSLS-II/suitcase?branch=master)
 [![Anaconda-Server Badge](https://anaconda.org/lightsource2/suitcase/badges/version.svg)](https://anaconda.org/lightsource2/suitcase)
 [![Anaconda-Server Badge](https://anaconda.org/lightsource2/suitcase/badges/installer/conda.svg)](https://conda.anaconda.org/lightsource2)
-# Suitcase
 
+# Suitcase
 
 Suitcase contains tools for exporting data from NSLS-II. It aims to support
 two important use cases:
@@ -19,3 +19,15 @@ two important use cases:
    sqlite, which is built in to Python and thus requires much less setup.)
 
 Number 2 is planned but not yet implemented.
+
+## Usage
+
+```python
+from databroker import db
+from suitcase import hdf
+
+# find the header(s) that you want to export
+hdrs = db(start_time='2016-03-03', stop_time='2016-03-05')
+fname = '/path/to/output/data'
+hdf.export(hdrs, fname)
+```
