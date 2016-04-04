@@ -3,7 +3,8 @@ from suitcase.spec import Specfile, spec_to_document
 import pytest
 import os
 from metadatastore.commands import (insert_run_start, insert_descriptor,
-                                    insert_event, insert_run_stop)
+                                    insert_event, insert_run_stop,
+                                    get_events_generator)
 from metadatastore.test.utils import mds_setup, mds_teardown
 
 from databroker import db
@@ -57,4 +58,13 @@ def test_spec_to_document(spec_data):
     # make sure we are not getting duplicates back out
     hdr_uids = [hdr.start.uid for hdr in hdrs]
     assert len(hdr_uids) == len(set(hdr_uids))
+
+    for hdr, specscan in zip(hdrs, spec_data):
+        for descriptor in hdr.descriptors:
+            ev = list(get_events_generator(descriptor))
+            if descriptor.name == 'baseline':
+                # we better only have one baseline event
+                assert len(ev) == 1
+            else:
+                assert len(specscan.scan_data) == len(ev)
 
