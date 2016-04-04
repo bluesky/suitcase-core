@@ -376,7 +376,7 @@ def run_start(specscan, **md):
     Yields
     ------
     document_name : str
-        'run_start' is what is yielded here
+        'start' is what is yielded here
     run_start_dict : dict
         The RunStart document that can be inserted into metadatastore or
         processed with a callback from the ``callbacks`` project.
@@ -391,7 +391,7 @@ def run_start(specscan, **md):
         'scan_type': specscan.scan_command,
     }
     run_start_dict.update(**md)
-    yield 'run_start', run_start_dict
+    yield 'start', run_start_dict
 
 
 def baseline(specscan, start_uid):
