@@ -219,6 +219,9 @@ class Specfile:
             self.scans[sid] = Specscan(self, scan)
 
     def __getitem__(self, key):
+        if isinstance(key, slice):
+            return list(self)[key]
+
         return self.scans[key]
 
     def __len__(self):
