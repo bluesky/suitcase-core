@@ -361,6 +361,24 @@ def spec_to_document(specfile, scan_ids=None):
 
 
 def run_start(specscan, **md):
+    """Convert a Specscan object into a RunStart document
+
+    Parameters
+    ----------
+    specscan : suitcase.spec.Specscan
+    **md : dict
+        Any extra metadata to insert into the RunStart document. Note that
+        any values in this **md dict will take precedence over the default
+        values that come from the Specscan object
+
+    Yields
+    ------
+    document_name : str
+        'run_start' is what is yielded here
+    run_start_dict : dict
+        The RunStart document that can be inserted into metadatastore or
+        processed with a callback from the ``callbacks`` project.
+    """
     run_start_dict = {
         'time': specscan.time_from_date.timestamp(),
         'scan_id': specscan.scan_id,
@@ -375,6 +393,24 @@ def run_start(specscan, **md):
 
 
 def baseline(specscan, start_uid):
+    """Convert a Specscan object into a baseline Descriptor and Event
+
+    Parameters
+    ----------
+    specscan : suitcase.spec.Specscan
+    start_uid : str
+        The uid of the RunStart document that these baseline documents should
+        be associated with.
+
+    Yields
+    ------
+    document_name : str
+        'descriptor' followed by 'event'
+    baseline_dict : dict
+        The baseline EventDescriptor followed by the baseline Event. These
+        documents can be inserted into into metadatastore or processed with a
+        callback from the ``callbacks`` project.
+    """
     timestamp = specscan.time_from_date.timestamp()
     data_keys = {}
     data = {}
@@ -397,17 +433,31 @@ def baseline(specscan, start_uid):
                       time=timestamp, uid=str(uuid.uuid4()),
                       name='baseline')
     yield 'descriptor', descriptor
-    event = dict(descriptor=descriptor_uid, seq_num=0, time=timestamp,
+    event = dict(descriptor=descriptor['uid'], seq_num=0, time=timestamp,
                  data=data, timestamps=timestamps, uid=str(uuid.uuid4()))
     yield 'event', event
 
 
 def events(specscan, start_uid):
-    timestamp = specscan.time_from_date.timestamp()
-    data_keys = {}
-    data = {}
-    timestamps = {}
+    """Convert a Specscan object into a Descriptor and Event documents
 
+    Parameters
+    ----------
+    specscan : suitcase.spec.Specscan
+    start_uid : str
+        The uid of the RunStart document that these baseline document should be
+        associated with.
+
+    Yields
+    ------
+    document_name : str
+        'descriptor' followed by 'event'
+    baseline_dict : dict
+        The EventDescriptor followed by the stream of Events. These documents
+        can be inserted into into metadatastore or processed with a callback
+        from the ``callbacks`` project.
+    """
+    timestamp = specscan.time_from_date.timestamp()
     data_keys = {col: {'dtype': 'number', 'shape': [], 'source': col}
                  for col in specscan.col_names}
     descriptor_uid = dict(run_start=start_uid, data_keys=data_keys,
@@ -424,6 +474,27 @@ def events(specscan, start_uid):
 
 
 def stop(specscan, start_uid, **md):
+    """Convert a Specscan object into a Stop document
+
+    Parameters
+    ----------
+    specscan : suitcase.spec.Specscan
+    start_uid : str
+        The uid of the RunStart document that this Stop document should
+        be associated with.
+    **md : dict
+        Any extra metadata to insert into the RunStart document. Note that
+        any values in this **md dict will take precedence over the default
+        values that come from the Specscan object
+
+    Yields
+    ------
+    document_name : str
+        'stop'
+    stop_dict : dict
+        The RunStop document that can be inserted into into metadatastore or
+        processed with a callback from the ``callbacks`` project.
+    """
     timestamp = specscan.time_from_date.timestamp()
     stop = dict(run_start=start_uid, time=timestamp, uid=str(uuid.uuid4()),
                 **md)
