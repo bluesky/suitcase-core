@@ -336,9 +336,9 @@ def spec_to_document(specfile, scan_ids=None):
         # yield the start document
         yield document_name, document
         # yield the baseline descriptor and its event
-        yield from baseline(specscan, start_uid)
+        yield from baseline(scan, start_uid)
         num_events = 0
-        for document_name, document in events(specscan, start_uid):
+        for document_name, document in events(scan, start_uid):
             if document_name == 'event':
                 num_events += 1
             # yield the descriptor and events
@@ -348,10 +348,10 @@ def spec_to_document(specfile, scan_ids=None):
         if num_events != scan.num_points:
             reason = 'abort'
             print('scan %s only has %s/%s points. Assuming scan was aborted. '
-                  'start_uid=%s' % (specscan.scan_id, len(primary_events),
-                                    specscan.num_points, start_uid))
+                  'start_uid=%s' % (scan.scan_id, len(num_events),
+                                    scan.num_points, start_uid))
         # yield the stop document
-        yield from stop(specscan, start_uid, reason=reason)
+        yield from stop(scan, start_uid, reason=reason)
 
 
 def run_start(specscan, **md):
