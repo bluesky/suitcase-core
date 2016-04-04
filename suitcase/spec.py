@@ -339,7 +339,8 @@ def spec_to_document(specfile, scan_ids=None):
         # yield the start document
         yield document_name, document
         # yield the baseline descriptor and its event
-        yield from baseline(scan, start_uid)
+        for document_name, document in baseline(scan, start_uid):
+            yield document_name, document
         num_events = 0
         for document_name, document in events(scan, start_uid):
             if document_name == 'event':
@@ -356,7 +357,7 @@ def spec_to_document(specfile, scan_ids=None):
                                                      scan.num_points,
                                                      start_uid))
         # yield the stop document
-        yield from stop(scan, start_uid, reason=reason)
+        yield stop(scan, start_uid, reason=reason)
 
 
 def run_start(specscan, **md):
