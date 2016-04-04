@@ -323,6 +323,11 @@ def spec_to_document(specfile, scan_ids=None):
                 scans_to_process = [specfile[sid] for sid in scan_ids]
     elif isinstance(specfile, Specscan):
         scans_to_process = [specfile]
+    else:
+        raise ValueError("Variable `specfile` is of type {0}. We only support"
+                         "strings, suitcase.spec.Specfile or "
+                         "suitcase.spec.Specscan objects here."
+                         "".format(specfile))
 
     for scan in scans_to_process:
         # do the conversion!
