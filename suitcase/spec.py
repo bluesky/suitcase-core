@@ -353,11 +353,13 @@ def spec_to_document(specfile, scan_ids=None):
             reason = 'abort'
             warnings.warn('scan %s only has %s/%s points. Assuming scan was '
                           'aborted. start_uid=%s' % (scan.scan_id,
-                                                     len(num_events),
+                                                     num_events,
                                                      scan.num_points,
                                                      start_uid))
         # yield the stop document
-        yield stop(scan, start_uid, reason=reason)
+        gen = stop(scan, start_uid, reason=reason)
+        document_name, document = next(gen)
+        yield document_name, document
 
 
 def run_start(specscan, **md):
