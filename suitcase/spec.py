@@ -4,14 +4,17 @@ for the spec file format.
 """
 import numpy as np
 import pandas as pd
+import uuid
 import os
+import warnings
 from datetime import datetime
 
 # need callback base from bluesky
 try:
     from bluesky.callbacks import CallbackBase
 except ImportError as ie:
-    print("bluesky.callbacks package is required for some spec functionality.")
+    warnings.warn("bluesky.callbacks package is required for some spec "
+                  "functionality.")
 
 
 # Dictionary that maps a spec metadata line to a specific lambda function
@@ -92,7 +95,7 @@ def parse_spec_header(spec_header):
             parsed_header[attr] = func(line_contents)
         else:
             # I have no idea what to do with this line...
-            print("I am not sure how to parse %s" % line_type)
+            warnings.warn("I am not sure how to parse %s" % line_type)
             parsed_header[line_type] = line_contents
 
     return parsed_header
@@ -347,9 +350,11 @@ def spec_to_document(specfile, scan_ids=None):
         reason = 'success'
         if num_events != scan.num_points:
             reason = 'abort'
-            print('scan %s only has %s/%s points. Assuming scan was aborted. '
-                  'start_uid=%s' % (scan.scan_id, len(num_events),
-                                    scan.num_points, start_uid))
+            warnings.warn('scan %s only has %s/%s points. Assuming scan was '
+                          'aborted. start_uid=%s' % (scan.scan_id,
+                                                     len(num_events),
+                                                     scan.num_points,
+                                                     start_uid))
         # yield the stop document
         yield from stop(scan, start_uid, reason=reason)
 
