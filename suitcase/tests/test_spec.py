@@ -68,3 +68,14 @@ def test_spec_to_document(spec_data):
             else:
                 assert len(specscan.scan_data) == len(ev)
 
+def test_equality():
+    path = os.path.join(os.path.dirname(__file__), 'data', '20160219.spec')
+    sf1 = Specfile(path)
+    sf2 = Specfile(path)
+    assert sf1 == sf2
+    for s1, s2, in zip(sf1, sf2):
+        assert s1 == s2
+
+def test_lt(spec_data):
+    for s1, s2 in zip(spec_data, spec_data[1:]):
+        assert s1 < s2

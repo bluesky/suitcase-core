@@ -233,6 +233,14 @@ class Specfile:
     def __repr__(self):
         return "Specfile('{}')".format(self.filename)
 
+    def __eq__(self, obj):
+        if not isinstance(obj, Specfile):
+            return False
+        return (self.filename == obj.filename and
+                self.header == obj.header and
+                self.parsed_header == obj.parsed_header and
+                list(self.scans.keys()) == list(obj.scans.keys()))
+
     def __str__(self):
         return """
 {0}
@@ -275,10 +283,13 @@ class Specscan:
         return len(self.scan_data)
 
     def __eq__(self, obj):
-        return obj.specfile == self.specfile and obj.scan_id == self.scan_id
+        return (self.specfile == obj.specfile and
+                self.raw_scan_data == obj.raw_scan_data and
+                self.md == obj.md and
+                self.scan_data.equals(obj.scan_data))
 
-    def __eq__(self, obj):
-        return obj.specfile != self.specfile or obj.scan_id != self.scan_id
+    def __lt__(self, obj):
+        return self.scan_id < obj.scan_id
 
     def __str__(self):
         return """Scan {}
