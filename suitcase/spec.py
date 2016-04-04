@@ -299,6 +299,11 @@ class Specscan:
               len(self), self.time_from_date)
 
 
+
+###############################################################################
+# Spec to document code
+###############################################################################
+
 def spec_to_document(specfile, scan_ids=None):
     """Convert one or more scans in a specfile into documents
 
@@ -515,3 +520,8 @@ def stop(specscan, start_uid, **md):
     stop = dict(run_start=start_uid, time=timestamp, uid=str(uuid.uuid4()),
                 **md)
     yield 'stop', stop
+
+
+###############################################################################
+# Document to Spec code
+###############################################################################
