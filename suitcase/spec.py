@@ -564,7 +564,7 @@ def to_stop(specscan, start_uid, **md):
 
 env = jinja2.Environment()
 
-_SPEC_FILE_HEADER_TEMPLATE = env.from_string("""#F {{ filepath }}
+_SPEC_FILE_HEADER_TEMPLATE = env.from_string("""#F {{ filename }}
 #E {{ unix_time }}
 #D {{ readable_time }}
 #C {{ owner }}  User = {{ owner }}
@@ -586,10 +586,18 @@ def to_spec_file_header(start, filepath, baseline_descriptor):
     start : Document or dict
         The RunStart that is emitted by the bluesky.run_engine.RunEngine or
         something that is compatible with that format
+    filepath : str
+        The filename of this spec scan. Will use os.path.basename to find the
+        filename
     baseline_descriptor : Document or dict, optional
         The 'baseline' Descriptor document that is emitted by the RunEngine
-        or something that is compatible with that format.  Defaults to the
-        values in suitcase.spec._DEFAULT_POSITIONERS
+        or something that is compatible with that format.
+        Defaults to the values in suitcase.spec._DEFAULT_POSITIONERS
+
+    Returns
+    -------
+    str
+        The formatted SPEC file header. You probably want to split on "\n"
     """
     if baseline_descriptor is None:
         baseline_descriptor = _DEFAULT_POSITIONERS
@@ -601,7 +609,7 @@ def to_spec_file_header(start, filepath, baseline_descriptor):
         in md['positioner_variable_names']]
     md['unix_time'] = int(start['time'])
     md['readable_time'] = datetime.fromtimestamp(md['unix_time'])
-    md['filepath'] = filepath
+    md['filename'] = os.path.basename(filepath)
     return _SPEC_FILE_HEADER_TEMPLATE.render(md)
 
 _SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ scan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
@@ -622,6 +630,27 @@ _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 """)
 
 def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
+    """Convert the RunStart, "primary" Descriptor and the "baseline" Event
+    into a spec scan header
+
+    Parameters
+    ----------
+    start : Document or dict
+        The RunStart document emitted by the bluesky RunEngine or a dictionary
+        that has compatible information
+    primary_descriptor : Document or dict
+        The Descriptor that corresponds to the main event stream
+    baseline_event : Document or dict, optional
+        The Event that corresponds to the mass reading of motors before the
+        scan begins.
+        Default value is `-1` for each of the keys in
+        `suitcase.spec._DEFAULT_POSITIONERS`
+
+    Returns
+    -------
+    str
+        The formatted SPEC scan header. You probably want to split on "\n"
+    """
     if baseline_event is None:
         baseline_event = {
             'data':
