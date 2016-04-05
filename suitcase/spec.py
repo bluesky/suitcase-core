@@ -676,4 +676,4 @@ def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
     md['num_columns'] = 3 + len(md['data_keys'])
     md['data_keys'] = sorted(list(primary_descriptor['data_keys'].keys()))
     md['motor_name'] = start['plan_args']['scan_motor']
-    return _SPEC_SCAN_HEADER_TEMPLATE.render(md) + '\n' +
+    return _SPEC_SCAN_HEADER_TEMPLATE.render(md)
