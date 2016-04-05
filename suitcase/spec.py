@@ -399,16 +399,8 @@ def spec_to_document(specfile, scan_ids=None):
             # yield the descriptor and events
             yield document_name, document
         # make sure the run was finished before it was stopped
-        reason = 'success'
-        if num_events != scan.num_points:
-            reason = 'abort'
-            warnings.warn('scan %s only has %s/%s points. Assuming scan was '
-                          'aborted. start_uid=%s' % (scan.scan_id,
-                                                     num_events,
-                                                     scan.num_points,
-                                                     start_uid))
         # yield the stop document
-        gen = to_stop(scan, start_uid, reason=reason)
+        gen = to_stop(scan, start_uid)
         document_name, document = next(gen)
         yield document_name, document
 
@@ -548,6 +540,18 @@ def to_stop(specscan, start_uid, **md):
         The RunStop document that can be inserted into into metadatastore or
         processed with a callback from the ``callbacks`` project.
     """
+    md['exit_status'] = 'success'
+    actual_events = len(specscan.scan_data)
+    expected_events = int(specscan.scan_args['strides']) + 1
+    if actual_events != expected_events:
+        md['reason'] = ('Expected events: {}. Actual events: {}'
+                        ''.format(expected_events, actual_events))
+        md['exit_status'] = 'abort'
+        warnings.warn('scan %s only has %s/%s points. Assuming scan was '
+                      'aborted. start_uid=%s' % (specscan.scan_id,
+                                                 actual_events,
+                                                 expected_events,
+                                                 start_uid))
     timestamp = specscan.time_from_date.timestamp()
     stop = dict(run_start=start_uid, time=timestamp, uid=str(uuid.uuid4()),
                 **md)
