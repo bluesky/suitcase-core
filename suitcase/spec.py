@@ -564,7 +564,7 @@ def to_stop(specscan, start_uid, **md):
 
 env = jinja2.Environment()
 
-_SPEC_HEADER_TEMPLATE = env.from_string("""#F {{ filepath }}
+_SPEC_FILE_HEADER_TEMPLATE = env.from_string("""#F {{ filepath }}
 #E {{ unix_time }}
 #D {{ readable_time }}
 #C {{ owner }}  User = {{ owner }}
@@ -578,7 +578,7 @@ _DEFAULT_POSITIONERS = {
          'Data':
              {'dtype': 'number', 'shape': [], 'source': 'SOME:OTHER:PV'}}}
 
-def to_spec_file_header(start, filepath, baseline):
+def to_spec_file_header(start, filepath, baseline_descriptor):
     """Generate a spec file header from some documents
 
     Parameters
@@ -586,20 +586,65 @@ def to_spec_file_header(start, filepath, baseline):
     start : Document or dict
         The RunStart that is emitted by the bluesky.run_engine.RunEngine or
         something that is compatible with that format
-    baseline : Document or dict, optional
+    baseline_descriptor : Document or dict, optional
         The 'baseline' Descriptor document that is emitted by the RunEngine
         or something that is compatible with that format.  Defaults to the
         values in suitcase.spec._DEFAULT_POSITIONERS
     """
-    if baseline is None:
-        baseline = _DEFAULT_POSITIONERS
+    if baseline_descriptor is None:
+        baseline_descriptor = _DEFAULT_POSITIONERS
     md = {}
     md['owner'] = start['owner']
-    md['positioner_variable_names'] = sorted(list(baseline['data_keys'].keys()))
+    md['positioner_variable_names'] = sorted(list(baseline_descriptor['data_keys'].keys()))
     md['positioner_variable_sources'] = [
-        baseline['data_keys'][k]['source'] for k
+        baseline_descriptor['data_keys'][k]['source'] for k
         in md['positioner_variable_names']]
     md['unix_time'] = int(start['time'])
     md['readable_time'] = datetime.fromtimestamp(md['unix_time'])
     md['filepath'] = filepath
-    return _SPEC_HEADER_TEMPLATE.render(md)
+    return _SPEC_FILE_HEADER_TEMPLATE.render(md)
+
+_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ scan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
+
+_PLAN_TO_SPEC_MAPPING = {'AbsScanPlan': 'ascan',
+                         'DeltaScanPlan': 'dscan',
+                         'Count': 'ct',
+                         'Tweak': 'tw'}
+
+_SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
+
+#S {{ scan_id }} {{ command }}
+#D {{ readable_time }}
+#T {{ acq_time }} (Seconds)
+#P0 {{ positioner_positions | join(' ')}}
+#N {{ num_columns }}
+#L {{ motor_name }}    Epoch  Seconds  {{ data_keys | join('  ') }}
+""")
+
+def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
+    if baseline_event is None:
+        baseline_event = {
+            'data':
+                {k: -1 for k in _DEFAULT_POSITIONERS['data_keys']}}
+    md = {}
+    md['scan_id'] = start['scan_id']
+    scan_command = start['scan_type']
+    if scan_command in _PLAN_TO_SPEC_MAPPING:
+        scan_command = _PLAN_TO_SPEC_MAPPING[start['scan_type']]
+    try:
+        acq_time = start['plan_args']['time']
+    except KeyError:
+        acq_time = -1
+    md['command'] = ' '.join(
+            [scan_command] +
+            [start['plan_args'][k]
+             for k in ('scan_motor', 'start', 'stop', 'step')] +
+            [acq_time])
+    md['readable_time'] = to_spec_time(datetime.fromtimestamp(start['time']))
+    md['acq_time'] = acq_time
+    md['positioner_positions'] = [
+        v for k, v in sorted(baseline_event['data_keys'].items())]
+    md['num_columns'] = 3 + len(md['data_keys'])
+    md['data_keys'] = sorted(list(primary_descriptor['data_keys'].keys()))
+    md['motor_name'] = start['plan_args']['scan_motor']
+    return _SPEC_SCAN_HEADER_TEMPLATE.render(md) + '\n' +
