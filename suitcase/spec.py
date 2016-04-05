@@ -151,7 +151,8 @@ def parse_spec_scan(raw_scan_data):
     line_type = S_row.pop(0)  # this is the '#S' portion of this line
     md['scan_id'] = int(S_row.pop(0))
     md['scan_command'] = S_row.pop(0)
-    md['scan_args'] = S_row
+    md['scan_args'] = {k: v for k, v in zip(
+        ['scan_motor', 'start', 'stop', 'strides', 'time'], S_row)}
     md['motor_values'] = []
     md['geometry'] = []
     line_hash_mapping = {
