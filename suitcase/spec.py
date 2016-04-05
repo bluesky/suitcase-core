@@ -16,6 +16,35 @@ except ImportError as ie:
     warnings.warn("bluesky.callbacks package is required for some spec "
                   "functionality.")
 
+# The way that SPEC time is formatted
+SPEC_TIME_FORMAT = '%a %b %d %H:%M:%S %Y'
+def from_spec_time(string_time):
+    """Convert the spec time in line #D to a Python datetime object
+
+    Parameters
+    ----------
+    string_time : str
+        The SPEC string representation of time. e.g.: Fri Feb 19 14:01:35 2016
+
+    Returns
+    -------
+    datetime.datetime object
+    """
+    return datetime.strptime(string_time, SPEC_TIME_FORMAT)
+
+def to_spec_time(datetime_object):
+    """Convert a datetime object into the SPEC line #D
+
+    Parameters
+    ----------
+    datetime_object : datetime.datetime object
+
+    Returns
+    -------
+    str
+        The string representation of SPEC time: e.g., Fri Feb 19 14:01:35 2016
+    """
+    return datetime_object.strftime(SPEC_TIME_FORMAT)
 
 # Dictionary that maps a spec metadata line to a specific lambda function
 # to parse it. This only works for lines whose contents can be mapped to a
@@ -24,11 +53,9 @@ except ImportError as ie:
 # semantic meaning" splitter
 spec_line_parser = {
     '#D': ('time_from_date',
-           lambda x: datetime.strptime(x, '%a %b %d %H:%M:%S %Y')),
+           lambda x: from_spec_time(x)),
     '#E': ('time',
            lambda x: datetime.fromtimestamp(int(x))),
-    '#F': ('date',
-           lambda x: datetime.strptime(x, '%Y%m%d')),
     # The exposure time
     '#N': ('num_points', int),
     # The h, k, l coordinates
