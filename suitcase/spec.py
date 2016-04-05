@@ -120,7 +120,8 @@ def parse_spec_scan(raw_scan_data):
         line
     """
     md = {}
-    S_row = raw_scan_data.pop(0).split()
+    S_row = raw_scan_data[0].split()
+    line_type = S_row.pop(0)  # this is the '#S' portion of this line
     md['scan_id'] = int(S_row.pop(0))
     md['scan_command'] = S_row.pop(0)
     md['scan_args'] = S_row
@@ -130,7 +131,7 @@ def parse_spec_scan(raw_scan_data):
         '#G': 'geometry',
         '#P': 'motor_values',
     }
-    for line in raw_scan_data:
+    for line in raw_scan_data[1:]:
         if line.startswith('#'):
             # split the line into the "line_type" which tells us the type of
             # information that this line contains and the "line_contents" which
@@ -209,13 +210,15 @@ class Specfile:
         self.filename = os.path.abspath(filename)
         with open(self.filename, 'r') as f:
             scan_data = f.read().split('#S')
+        # reintroduce '#S' to the start of each scan row
+        scan_data = [scan_data[0]] + ['#S' + d for d in scan_data[1:]]
         scan_data = [section.split('\n') for section in scan_data]
         self.header = scan_data.pop(0)
         # parse header
         self.parsed_header = parse_spec_header(self.header)
         self.scans = {}
         for scan in scan_data:
-            sid = int(scan[0].split()[0])
+            sid = int(scan[0].split()[1])
             self.scans[sid] = Specscan(self, scan)
 
     def __getitem__(self, key):
