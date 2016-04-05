@@ -8,6 +8,7 @@ import uuid
 import os
 import warnings
 from datetime import datetime
+import jinja2
 
 # need callback base from bluesky
 try:
@@ -556,3 +557,45 @@ def to_stop(specscan, start_uid, **md):
 ###############################################################################
 # Document to Spec code
 ###############################################################################
+
+env = jinja2.Environment()
+
+_SPEC_HEADER_TEMPLATE = env.from_string("""#F {{ filepath }}
+#E {{ unix_time }}
+#D {{ readable_time }}
+#C {{ owner }}  User = {{ owner }}
+#O0 {{ positioner_variable_sources | join ('  ') }}
+#o0 {{ positioner_variable_names | join(' ') }}""")
+
+_DEFAULT_POSITIONERS = {
+    'data_keys':
+        {'Science':
+             {'dtype': 'number', 'shape': [], 'source': 'SOME:RANDOM:PV'},
+         'Data':
+             {'dtype': 'number', 'shape': [], 'source': 'SOME:OTHER:PV'}}}
+
+def to_spec_file_header(start, filepath, baseline):
+    """Generate a spec file header from some documents
+
+    Parameters
+    ----------
+    start : Document or dict
+        The RunStart that is emitted by the bluesky.run_engine.RunEngine or
+        something that is compatible with that format
+    baseline : Document or dict, optional
+        The 'baseline' Descriptor document that is emitted by the RunEngine
+        or something that is compatible with that format.  Defaults to the
+        values in suitcase.spec._DEFAULT_POSITIONERS
+    """
+    if baseline is None:
+        baseline = _DEFAULT_POSITIONERS
+    md = {}
+    md['owner'] = start['owner']
+    md['positioner_variable_names'] = sorted(list(baseline['data_keys'].keys()))
+    md['positioner_variable_sources'] = [
+        baseline['data_keys'][k]['source'] for k
+        in md['positioner_variable_names']]
+    md['unix_time'] = int(start['time'])
+    md['readable_time'] = datetime.fromtimestamp(md['unix_time'])
+    md['filepath'] = filepath
+    return _SPEC_HEADER_TEMPLATE.render(md)
