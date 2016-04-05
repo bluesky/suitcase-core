@@ -384,15 +384,15 @@ def spec_to_document(specfile, scan_ids=None):
 
     for scan in scans_to_process:
         # do the conversion!
-        document_name, document = next(run_start(scan))
+        document_name, document = next(to_run_start(scan))
         start_uid = document['uid']
         # yield the start document
         yield document_name, document
         # yield the baseline descriptor and its event
-        for document_name, document in baseline(scan, start_uid):
+        for document_name, document in to_baseline(scan, start_uid):
             yield document_name, document
         num_events = 0
-        for document_name, document in events(scan, start_uid):
+        for document_name, document in to_events(scan, start_uid):
             if document_name == 'event':
                 num_events += 1
             # yield the descriptor and events
@@ -407,12 +407,12 @@ def spec_to_document(specfile, scan_ids=None):
                                                      scan.num_points,
                                                      start_uid))
         # yield the stop document
-        gen = stop(scan, start_uid, reason=reason)
+        gen = to_stop(scan, start_uid, reason=reason)
         document_name, document = next(gen)
         yield document_name, document
 
 
-def run_start(specscan, **md):
+def to_run_start(specscan, **md):
     """Convert a Specscan object into a RunStart document
 
     Parameters
@@ -444,7 +444,7 @@ def run_start(specscan, **md):
     yield 'start', run_start_dict
 
 
-def baseline(specscan, start_uid):
+def to_baseline(specscan, start_uid):
     """Convert a Specscan object into a baseline Descriptor and Event
 
     Parameters
@@ -490,7 +490,7 @@ def baseline(specscan, start_uid):
     yield 'event', event
 
 
-def events(specscan, start_uid):
+def to_events(specscan, start_uid):
     """Convert a Specscan object into a Descriptor and Event documents
 
     Parameters
@@ -525,7 +525,7 @@ def events(specscan, start_uid):
         yield 'event', event
 
 
-def stop(specscan, start_uid, **md):
+def to_stop(specscan, start_uid, **md):
     """Convert a Specscan object into a Stop document
 
     Parameters
