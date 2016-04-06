@@ -116,21 +116,22 @@ def test_round_trip_from_specfile(spec_filename):
     assert len(sf2) > 0
 
 
-# def test_round_trip_from_run_engine():
-#     # generate a new specfile
-#     from bluesky.tests.utils import setup_test_run_engine
-#     from bluesky.examples import motor, det
-#     from bluesky.plans import DeltaScanPlan, AbsScanPlan, Count, Tweak
-#     RE = setup_test_run_engine()
-#     fname = tempfile.NamedTemporaryFile().name
-#     cb = DocumentToSpec(fname)
-#     dscan = DeltaScanPlan([det], motor, -1, 1, 10)
-#     RE(dscan, {'all': cb})
-#     ascan = AbsScanPlan([det], motor, -1, 1, 10)
-#     RE(ascan, {'all': cb})
-#
-#
-#     sf = Specfile(fname)
-#     sf1 = _round_trip(sf)
-#
-#     assert len(sf) == len(sf1)
+def test_round_trip_from_run_engine():
+    # generate a new specfile
+    from bluesky.tests.utils import setup_test_run_engine
+    from bluesky.examples import motor, det
+    from bluesky.plans import DeltaScanPlan, AbsScanPlan, Count, Tweak
+    RE = setup_test_run_engine()
+    RE.ignore_callback_exceptions = False
+    fname = tempfile.NamedTemporaryFile().name
+    cb = DocumentToSpec(fname)
+    dscan = DeltaScanPlan([det], motor, -1, 1, 10)
+    RE(dscan, {'all': cb})
+    ascan = AbsScanPlan([det], motor, -1, 1, 10)
+    RE(ascan, {'all': cb})
+
+
+    sf = Specfile(fname)
+    sf1 = _round_trip(sf)
+
+    assert len(sf) == len(sf1)
