@@ -666,7 +666,7 @@ _DEFAULT_POSITIONERS = {
              {'dtype': 'number', 'shape': [], 'source': 'SOME:OTHER:PV'}}}
 
 
-def to_spec_file_header(start, filepath, baseline_descriptor):
+def to_spec_file_header(start, filepath, baseline_descriptor=None):
     """Generate a spec file header from some documents
 
     Parameters
@@ -912,10 +912,15 @@ class DocumentToSpec(CallbackBase):
         self._num_events_received = 0
         self._num_baseline_events_received = 0
 
-    def _write_new_header(self, baseline):
-        header = to_spec_file_header(self._start, self.specpath, baseline)
-        with open(self.specpath, 'w') as f:
-            f.write(header)
+    def _write_new_header(self):
+        if not os.path.exists(self.specpath):
+            logger.debug("Writing new spec file header")
+            header = to_spec_file_header(self._start, self.specpath,
+                                         self._baseline_descriptor)
+            with open(self.specpath, 'w') as f:
+                f.write(header)
+        # for now assume we don't need to write a new header.  Will revisit
+        # when someone wants to be able to do this.
 
     def descriptor(self, doc):
         if doc.get('name') == 'baseline':
@@ -923,19 +928,6 @@ class DocumentToSpec(CallbackBase):
             # if this is the baseline descriptor, we might need to write a
             # new file header
             self._baseline_descriptor = doc
-            if not os.path.exists(self.specpath):
-                logger.debug("Writing new spec file header")
-                self._write_new_header(doc)
-            else:
-                logger.debug("Writing data into new spec file")
-                sf = Specfile(self.specpath)
-                # See if we need to write a new header
-                if (set(list(sf.parsed_header['motor_spec_names'])) !=
-                        set(list(doc['data_keys'].keys()))):
-                    self.specpath = os.path.join(
-                            os.pardir(self.specpath),
-                            datetime.now().strftime('%Y-%m-%d::%H:%M'))
-                    self._write_new_header(doc)
         elif self._primary_descriptor:
             # we already have a primary descriptor, why are we getting
             # another one?
@@ -971,6 +963,8 @@ class DocumentToSpec(CallbackBase):
                     "need help doing this, please request help at "
                     "https://github.com/NSLS-II/Bug-Reports/issues")
                 warnings.warn(err_msg)
+            # maybe write a new header if there is not one already
+            self._write_new_header()
             # write the scan header with whatever information we currently have
             scan_header = to_spec_scan_header(self._start,
                                               self._primary_descriptor,

@@ -40,6 +40,10 @@ def test_spec_to_document(spec_filename):
     }
     start_uids = list()
     for document_name, document in spec_to_document(sf):
+        document = dict(document)
+        del document['_name']
+        if not isinstance(document_name, str):
+            document_name = document_name.name
         # insert the documents
         if document_name == 'start':
             document['beamline_id'] = 'test'
@@ -64,7 +68,7 @@ def test_spec_to_document(spec_filename):
     for hdr, specscan in zip(hdrs, sf):
         for descriptor in hdr.descriptors:
             ev = list(get_events_generator(descriptor))
-            if descriptor.name == 'baseline':
+            if descriptor.get('name') == 'baseline':
                 # we better only have one baseline event
                 assert len(ev) == 1
             else:
