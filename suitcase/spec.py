@@ -801,7 +801,7 @@ class DocumentToSpec(CallbackBase):
                 self._motor = doc['motors']
                 content['start'] = plan_args['start']
                 content['stop'] = plan_args['stop']
-                content['strides'] = int(plan_args['num']) - 1,
+                content['strides'] = int(plan_args['strides']) - 1,
             # We only support a single scanning motor right now.
             if len(self._motor) > 1:
                 raise NotImplementedError(
