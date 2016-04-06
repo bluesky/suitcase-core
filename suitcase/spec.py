@@ -931,7 +931,7 @@ class DocumentToSpec(CallbackBase):
                 sf = Specfile(self.specpath)
                 # See if we need to write a new header
                 if (set(list(sf.parsed_header['motor_spec_names'])) !=
-                        set(list(doc.data_keys.keys()))):
+                        set(list(doc['data_keys'].keys()))):
                     self.specpath = os.path.join(
                             os.pardir(self.specpath),
                             datetime.now().strftime('%Y-%m-%d::%H:%M'))
@@ -954,7 +954,7 @@ class DocumentToSpec(CallbackBase):
 
     def event(self, doc):
         if (self._baseline_descriptor and
-                    doc.descriptor == self._baseline_descriptor.uid):
+                    doc['descriptor'] == self._baseline_descriptor['uid']):
             logger.debug("Received baseline event document")
             self._num_baseline_events_received += 1
             self._baseline_event = doc
@@ -979,7 +979,7 @@ class DocumentToSpec(CallbackBase):
                 f.write(scan_header)
             self._has_not_written_scan_header = False
 
-        if doc.descriptor != self._primary_descriptor.uid:
+        if doc['descriptor'] != self._primary_descriptor['uid']:
             err_msg = (
                 "The DocumentToSpec callback is not designed to handle more "
                 "than one event stream.  If you need this functionality, please "
