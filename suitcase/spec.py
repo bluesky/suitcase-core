@@ -465,7 +465,8 @@ def to_run_start(specscan, validate=False, **md):
     run_start_dict.update(**md)
     if validate:
         _validate(event_model.DocumentNames.start, run_start_dict)
-    yield event_model.DocumentNames.start, run_start_dict
+    yield event_model.DocumentNames.start, doct.Document('RunStart',
+                                                         run_start_dict)
 
 
 
@@ -520,12 +521,13 @@ def to_baseline(specscan, start_uid, validate=False):
                       _name='baseline')
     if validate:
         _validate(event_model.DocumentNames.descriptor, descriptor)
-    yield event_model.DocumentNames.descriptor, doct.Document(descriptor)
+    yield (event_model.DocumentNames.descriptor,
+           doct.Document('BaselineDescriptor', descriptor))
     event = dict(descriptor=descriptor['uid'], seq_num=0, time=timestamp,
                  data=data, timestamps=timestamps, uid=str(uuid.uuid4()))
     if validate:
-        _validate(event_model.DocumentNames.descriptor, descriptor)
-    yield event_model.DocumentNames.event, event
+        _validate(event_model.DocumentNames.event, event)
+    yield event_model.DocumentNames.event, doct.Document('BaselineEvent', event)
 
 
 def to_events(specscan, start_uid, validate=False):
@@ -563,7 +565,8 @@ def to_events(specscan, start_uid, validate=False):
                       name='primary')
     if validate:
         _validate(event_model.DocumentNames.descriptor, descriptor)
-    yield event_model.DocumentNames.descriptor, descriptor
+    yield (event_model.DocumentNames.descriptor,
+           doct.Document('PrimaryEventDescriptor', descriptor))
     timestamps = {col: timestamp for col in specscan.col_names}
     for seq_num, (x, row_series) in enumerate(specscan.scan_data.iterrows()):
         data = {col: data for col, data in zip(row_series.index, row_series[:])}
@@ -572,7 +575,8 @@ def to_events(specscan, start_uid, validate=False):
                      timestamps=timestamps, uid=str(uuid.uuid4()))
         if validate:
             _validate(event_model.DocumentNames.descriptor, descriptor)
-        yield event_model.DocumentNames.event, event
+        yield event_model.DocumentNames.event, doct.Document('PrimaryEvent',
+                                                             event)
 
 
 def to_stop(specscan, start_uid, validate=False, **md):
@@ -617,7 +621,7 @@ def to_stop(specscan, start_uid, validate=False, **md):
                 **md)
     if validate:
         _validate(event_model.DocumentNames.stop, stop)
-    yield event_model.DocumentNames.stop, stop
+    yield event_model.DocumentNames.stop, doct.Document('RunStop', stop)
 
 
 ###############################################################################
