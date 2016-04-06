@@ -729,10 +729,10 @@ class DocumentToSpec(CallbackBase):
         """
         content = dict(
             filepath=self.specpath,
-           unix_time=int(doc['time']),
-           readable_time=to_spec_time(datetime.fromtimestamp(doc['time'])),
-           owner=doc['owner'],
-           positioners=self.pos_names)
+            unix_time=int(doc['time']),
+            readable_time=to_spec_time(datetime.fromtimestamp(doc['time'])),
+            owner=doc['owner'],
+            positioners=self.pos_names)
         with open(self.specpath, 'w') as f:
             f.write(_SPEC_HEADER_TEMPLATE.render(content))
 
