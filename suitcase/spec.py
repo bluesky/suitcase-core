@@ -154,7 +154,7 @@ def parse_spec_scan(raw_scan_data):
     md['scan_command'] = S_row.pop(0)
     md['scan_args'] = {k: v for k, v in zip(
         ['scan_motor', 'start', 'stop', 'strides', 'time'], S_row)}
-    md['motors'] = [md['plan_args']['scan_motor']]
+    md['motors'] = [md['scan_args']['scan_motor']]
     # Not sure how to add the 'detectors' line to the RunStart
     # md['detectors'] =
     md['motor_values'] = []
