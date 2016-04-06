@@ -653,7 +653,7 @@ _SPEC_START_TEMPLATE = env.from_string("""
 # It is critical that the spacing on the #L line remain exactly like this!
 _SPEC_DESCRIPTOR_TEMPLATE = env.from_string("""
 #N {{ length }}
-#L {{ motor_name }}    Epoch  Seconds  {{ data_keys | join('  ') }}\n""")
+#L {{ motor_name }}  Epoch  Seconds  {{ data_keys | join('  ') }}\n""")
 
 _SPEC_EVENT_TEMPLATE = env.from_string(
     """{{ motor_position }}  {{ unix_time }} {{ acq_time }} {{ values | join(' ') }}\n""")
