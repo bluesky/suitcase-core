@@ -9,6 +9,9 @@ import os
 import warnings
 from datetime import datetime
 import jinja2
+import doct
+import event_model
+import jsonschema
 
 # need callback base from bluesky
 try:
@@ -339,7 +342,7 @@ class Specscan:
 # Spec to document code
 ###############################################################################
 
-def spec_to_document(specfile, scan_ids=None):
+def spec_to_document(specfile, scan_ids=None, validate=False):
     """Convert one or more scans in a specfile into documents
 
     Parameters
@@ -348,6 +351,9 @@ def spec_to_document(specfile, scan_ids=None):
         The path to the spec file that should be loaded
     scan_ids : int or iterable, optional
         The scan ids that should be converted into documents
+    validate : bool, optional
+        Whether or not to use jsonschema validation on the documents that are
+        being created. Defaults to False
 
     Yields
     ------
@@ -388,32 +394,49 @@ def spec_to_document(specfile, scan_ids=None):
 
     for scan in scans_to_process:
         # do the conversion!
-        document_name, document = next(to_run_start(scan))
+        document_name, document = next(to_run_start(scan, validate=validate))
         start_uid = document['uid']
         # yield the start document
         yield document_name, document
         # yield the baseline descriptor and its event
-        for document_name, document in to_baseline(scan, start_uid):
+        for document_name, document in to_baseline(scan, start_uid,
+                                                   validate=validate):
             yield document_name, document
         num_events = 0
-        for document_name, document in to_events(scan, start_uid):
+        for document_name, document in to_events(scan, start_uid,
+                                                 validate=validate):
             if document_name == 'event':
                 num_events += 1
             # yield the descriptor and events
             yield document_name, document
         # make sure the run was finished before it was stopped
         # yield the stop document
-        gen = to_stop(scan, start_uid)
+        gen = to_stop(scan, start_uid, validate=validate)
         document_name, document = next(gen)
         yield document_name, document
 
 
-def to_run_start(specscan, **md):
+def _validate(doc_name, doc_dict):
+    """Run the documents through jsonschema validation
+
+    Parameters
+    ----------
+    doc_name : str
+        One of the keys in event_model.schemas
+    doc_dict : dict
+        The dictionary that is supposedly of `doc_name` type
+    """
+    jsonschema.validate(doc_dict, event_model.schemas[doc_name])
+
+def to_run_start(specscan, validate=False, **md):
     """Convert a Specscan object into a RunStart document
 
     Parameters
     ----------
     specscan : suitcase.spec.Specscan
+    validate : bool, optional
+        Whether or not to use jsonschema validation on the document that is
+        being created. Defaults to False
     **md : dict
         Any extra metadata to insert into the RunStart document. Note that
         any values in this **md dict will take precedence over the default
@@ -437,12 +460,16 @@ def to_run_start(specscan, **md):
         'plan_args': specscan.scan_args,
         'motors': [specscan.md['scan_args']['scan_motor']],
         'plan_type': plan_type,
+        '_name': 'RunStart'
     }
     run_start_dict.update(**md)
-    yield 'start', run_start_dict
+    if validate:
+        _validate(event_model.DocumentNames.start, run_start_dict)
+    yield event_model.DocumentNames.start, run_start_dict
 
 
-def to_baseline(specscan, start_uid):
+
+def to_baseline(specscan, start_uid, validate=False):
     """Convert a Specscan object into a baseline Descriptor and Event
 
     Parameters
@@ -451,6 +478,9 @@ def to_baseline(specscan, start_uid):
     start_uid : str
         The uid of the RunStart document that these baseline documents should
         be associated with.
+    validate : bool, optional
+        Whether or not to use jsonschema validation on the document that is
+        being created. Defaults to False
 
     Yields
     ------
@@ -471,24 +501,34 @@ def to_baseline(specscan, start_uid):
             specscan.motor_values):
         data_keys[obj_name] = {'dtype': 'number',
                                'shape': [],
-                               'source': human_name}
+                               'source': human_name,
+                               'object_name': obj_name,
+                               'precision': -1,
+                               'units': 'N/A'}
         data[obj_name] = value
         timestamps[obj_name] = timestamp
     data_keys.update({k: {'dtype': 'number',
                           'shape': [],
-                          'source': k} for k in 'hkl'})
+                          'source': k,
+                          'object_name': obj_name,
+                          'precision': -1,
+                          'units': 'N/A'} for k in 'hkl'})
     data.update({k: v for k, v in zip('hkl', specscan.hkl)})
     timestamps.update({k: timestamp for k in 'hkl'})
     descriptor = dict(run_start=start_uid, data_keys=data_keys,
                       time=timestamp, uid=str(uuid.uuid4()),
-                      name='baseline')
-    yield 'descriptor', descriptor
+                      _name='baseline')
+    if validate:
+        _validate(event_model.DocumentNames.descriptor, descriptor)
+    yield event_model.DocumentNames.descriptor, doct.Document(descriptor)
     event = dict(descriptor=descriptor['uid'], seq_num=0, time=timestamp,
                  data=data, timestamps=timestamps, uid=str(uuid.uuid4()))
-    yield 'event', event
+    if validate:
+        _validate(event_model.DocumentNames.descriptor, descriptor)
+    yield event_model.DocumentNames.event, event
 
 
-def to_events(specscan, start_uid):
+def to_events(specscan, start_uid, validate=False):
     """Convert a Specscan object into a Descriptor and Event documents
 
     Parameters
@@ -497,6 +537,9 @@ def to_events(specscan, start_uid):
     start_uid : str
         The uid of the RunStart document that these baseline document should be
         associated with.
+    validate : bool, optional
+        Whether or not to use jsonschema validation on the document that is
+        being created. Defaults to False
 
     Yields
     ------
@@ -508,22 +551,31 @@ def to_events(specscan, start_uid):
         from the ``callbacks`` project.
     """
     timestamp = specscan.time_from_date.timestamp()
-    data_keys = {col: {'dtype': 'number', 'shape': [], 'source': col}
+    data_keys = {col: {'dtype': 'number',
+                       'shape': [],
+                       'source': col,
+                       'object_name': col,
+                       'precision': -1,
+                       'units': 'N/A'}
                  for col in specscan.col_names}
-    descriptor_uid = dict(run_start=start_uid, data_keys=data_keys,
-                          time=timestamp, uid=str(uuid.uuid4()),
-                          name='primary')
-    yield 'descriptor', descriptor_uid
+    descriptor = dict(run_start=start_uid, data_keys=data_keys,
+                      time=timestamp, uid=str(uuid.uuid4()),
+                      name='primary')
+    if validate:
+        _validate(event_model.DocumentNames.descriptor, descriptor)
+    yield event_model.DocumentNames.descriptor, descriptor
     timestamps = {col: timestamp for col in specscan.col_names}
     for seq_num, (x, row_series) in enumerate(specscan.scan_data.iterrows()):
         data = {col: data for col, data in zip(row_series.index, row_series[:])}
-        event = dict(data=data, descriptor=descriptor_uid,
+        event = dict(data=data, descriptor=descriptor['uid'],
                      seq_num=seq_num, time=timestamp + data['Epoch'],
                      timestamps=timestamps, uid=str(uuid.uuid4()))
-        yield 'event', event
+        if validate:
+            _validate(event_model.DocumentNames.descriptor, descriptor)
+        yield event_model.DocumentNames.event, event
 
 
-def to_stop(specscan, start_uid, **md):
+def to_stop(specscan, start_uid, validate=False, **md):
     """Convert a Specscan object into a Stop document
 
     Parameters
@@ -532,6 +584,9 @@ def to_stop(specscan, start_uid, **md):
     start_uid : str
         The uid of the RunStart document that this Stop document should
         be associated with.
+    validate : bool, optional
+        Whether or not to use jsonschema validation on the document that is
+        being created. Defaults to False
     **md : dict
         Any extra metadata to insert into the RunStart document. Note that
         any values in this **md dict will take precedence over the default
@@ -560,161 +615,44 @@ def to_stop(specscan, start_uid, **md):
     timestamp = specscan.time_from_date.timestamp()
     stop = dict(run_start=start_uid, time=timestamp, uid=str(uuid.uuid4()),
                 **md)
-    yield 'stop', stop
+    if validate:
+        _validate(event_model.DocumentNames.stop, stop)
+    yield event_model.DocumentNames.stop, stop
 
 
 ###############################################################################
 # Document to Spec code
 ###############################################################################
 
-env = jinja2.Environment()
-
-
-_SPEC_FILE_HEADER_TEMPLATE = env.from_string("""#F {{ filename }}
-#E {{ unix_time }}
-#D {{ readable_time }}
-#C {{ owner }}  User = {{ owner }}
-#O0 {{ positioner_variable_sources | join ('  ') }}
-#o0 {{ positioner_variable_names | join(' ') }}""")
-
-
-_DEFAULT_POSITIONERS = {
-    'data_keys':
-        {'Science':
-             {'dtype': 'number', 'shape': [], 'source': 'SOME:RANDOM:PV'},
-         'Data':
-             {'dtype': 'number', 'shape': [], 'source': 'SOME:OTHER:PV'}}}
-
-
-def to_spec_file_header(start, filepath, baseline_descriptor):
-    """Generate a spec file header from some documents
-
-    Parameters
-    ----------
-    start : Document or dict
-        The RunStart that is emitted by the bluesky.run_engine.RunEngine or
-        something that is compatible with that format
-    filepath : str
-        The filename of this spec scan. Will use os.path.basename to find the
-        filename
-    baseline_descriptor : Document or dict, optional
-        The 'baseline' Descriptor document that is emitted by the RunEngine
-        or something that is compatible with that format.
-        Defaults to the values in suitcase.spec._DEFAULT_POSITIONERS
-
-    Returns
-    -------
-    str
-        The formatted SPEC file header. You probably want to split on "\n"
-    """
-    if baseline_descriptor is None:
-        baseline_descriptor = _DEFAULT_POSITIONERS
-    md = {}
-    md['owner'] = start['owner']
-    md['positioner_variable_names'] = sorted(list(baseline_descriptor['data_keys'].keys()))
-    md['positioner_variable_sources'] = [
-        baseline_descriptor['data_keys'][k]['source'] for k
-        in md['positioner_variable_names']]
-    md['unix_time'] = int(start['time'])
-    md['readable_time'] = datetime.fromtimestamp(md['unix_time'])
-    md['filename'] = os.path.basename(filepath)
-    return _SPEC_FILE_HEADER_TEMPLATE.render(md)
-
-
-_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
-
 _SPEC_SCAN_NAMES = ['ascan', 'dscan', 'ct', 'tw']
 _BLUESKY_PLAN_NAMES = ['AbsScanPlan', 'DeltaScanPlan', 'Count', 'Tweak']
 _PLAN_TO_SPEC_MAPPING = {k: v for k, v in zip(_BLUESKY_PLAN_NAMES,
                                               _SPEC_SCAN_NAMES)}
 
-_SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
+env = jinja2.Environment()
+
+_SPEC_HEADER_TEMPLATE = env.from_string("""#F {{ filepath }}
+#E {{ unix_time }}
+#D {{ readable_time }}
+#C {{ owner }}  User = {{ owner }}
+#O0 {{ positioners | join(' ') }}""")
+
+_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ scan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
+
+_SPEC_START_TEMPLATE = env.from_string("""
 
 #S {{ scan_id }} {{ command }}
 #D {{ readable_time }}
 #T {{ acq_time }} (Seconds)
-#P0 {{ positioner_positions | join(' ')}}
-#N {{ num_columns }}
-#L {{ motor_name }}    Epoch  Seconds  {{ data_keys | join('  ') }}
-""")
+#P0 {{ positioner_positions | join(' ')}}""")
 
-
-def _get_acq_time(start, default_value=-1):
-    """Private helper function to extract the acquisition time from the Start
-    document
-
-    Parameters
-    ----------
-    start : Document or dict
-        The RunStart document emitted by the bluesky RunEngine or a dictionary
-        that has compatible information
-    default_value : int, optional
-        The default acquisition time. Defaults to -1
-    """
-    try:
-        return start['plan_args']['time']
-    except KeyError:
-        return default_value
-
-
-def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
-    """Convert the RunStart, "primary" Descriptor and the "baseline" Event
-    into a spec scan header
-
-    Parameters
-    ----------
-    start : Document or dict
-        The RunStart document emitted by the bluesky RunEngine or a dictionary
-        that has compatible information
-    primary_descriptor : Document or dict
-        The Descriptor that corresponds to the main event stream
-    baseline_event : Document or dict, optional
-        The Event that corresponds to the mass reading of motors before the
-        scan begins.
-        Default value is `-1` for each of the keys in
-        `suitcase.spec._DEFAULT_POSITIONERS`
-
-    Returns
-    -------
-    str
-        The formatted SPEC scan header. You probably want to split on "\n"
-    """
-    if baseline_event is None:
-        baseline_event = {
-            'data':
-                {k: -1 for k in _DEFAULT_POSITIONERS['data_keys']}}
-    md = {}
-    md['scan_id'] = start['scan_id']
-    scan_command = start['plan_type']
-    if scan_command in _PLAN_TO_SPEC_MAPPING:
-        scan_command = _PLAN_TO_SPEC_MAPPING[start['plan_type']]
-    acq_time = _get_acq_time(start)
-    md['command'] = ' '.join(
-            [scan_command] +
-            [start['plan_args'][k]
-             for k in ('scan_motor', 'start', 'stop', 'step')] +
-            [acq_time])
-    md['readable_time'] = to_spec_time(datetime.fromtimestamp(start['time']))
-    md['acq_time'] = acq_time
-    md['positioner_positions'] = [
-        v for k, v in sorted(baseline_event['data_keys'].items())]
-    md['num_columns'] = 3 + len(md['data_keys'])
-    md['data_keys'] = sorted(list(primary_descriptor['data_keys'].keys()))
-    md['motor_name'] = start['plan_args']['scan_motor']
-    return _SPEC_SCAN_HEADER_TEMPLATE.render(md)
-
+# It is critical that the spacing on the #L line remain exactly like this!
+_SPEC_DESCRIPTOR_TEMPLATE = env.from_string("""
+#N {{ length }}
+#L {{ motor_name }}    Epoch  Seconds  {{ data_keys | join('  ') }}\n""")
 
 _SPEC_EVENT_TEMPLATE = env.from_string(
     """{{ motor_position }}  {{ unix_time }} {{ acq_time }} {{ values | join(' ') }}\n""")
-
-
-def to_spec_scan_data(start, event):
-    data = event['data']
-    md = {}
-    md['unix_time'] = int(event['time'])
-    md['acq_time'] = _get_acq_time(start)
-    md['motor_position'] =
-    pass
 
 class DocumentToSpec(CallbackBase):
     """Callback to export scalar values to a spec file for viewing
@@ -732,11 +670,11 @@ class DocumentToSpec(CallbackBase):
     Example
     -------
     It is suggested to put this in the ipython profile:
-    >>> from suitcase.spec import DocumentToSpec
-    >>> document_to_spec_callback =  DocumentToSpec(os.path.expanduser('~/specfiles/test.spec'))
-    >>> gs.RE.subscribe('all', document_to_spec_callback)
+    >>> from bluesky.callbacks import LiveSpecFile
+    >>> live_specfile_callback = LiveSpecFile(os.path.expanduser('~/specfiles/test.spec'))
+    >>> gs.RE.subscribe('all', live_specfile_callback)
     >>> # Modify the spec file location like this:
-    >>> # document_to_spec_callback.filepath = '/some/new/filepath.spec'
+    >>> # live_specfile_callback.filepath = '/some/new/filepath.spec'
 
     Notes
     -----
@@ -779,7 +717,7 @@ class DocumentToSpec(CallbackBase):
                        owner=doc['owner'],
                        positioners=self.pos_names)
         with open(self.specpath, 'w') as f:
-            f.write(_SPEC_FILE_HEADER_TEMPLATE.render(content))
+            f.write(_SPEC_HEADER_TEMPLATE.render(content))
 
     def start(self, doc):
         if not os.path.exists(self.specpath):
@@ -792,7 +730,7 @@ class DocumentToSpec(CallbackBase):
             # Some of these are used in other methods too -- stash them.
             self._unix_time = doc['time']
             self._acq_time = plan_args.get('time', -1)
-            content = dict(plan_type=_PLAN_TO_SPEC_MAPPING[doc['plan_type']],
+            content = dict(scan_type=_PLAN_TO_SPEC_MAPPING[doc['plan_type']],
                            acq_time=self._acq_time)
             if plan_type == 'Count':
                 # count has no motor. Have to fake one.
@@ -807,7 +745,7 @@ class DocumentToSpec(CallbackBase):
                 raise NotImplementedError(
                     "Your scan has %s scanning motors. They are %s. SpecCallback"
                     " cannot handle multiple scanning motors. Please request "
-                    "this feature at https://github.com/NSLS-II/suitcase/issues" %
+                    "this feature at https://github.com/NSLS-II/bluesky/issues" %
                     (len(self._motor), self._motor))
             self._motor, = self._motor
             content['scan_motor'] = self._motor
@@ -839,7 +777,7 @@ class DocumentToSpec(CallbackBase):
                        length=3 + len(self._read_fields),
                        data_keys=self._read_fields)
         with open(self.specpath, 'a') as f:
-            f.write(_SPEC_SCAN_HEADER_TEMPLATE.render(self._start_content))
+            f.write(_SPEC_START_TEMPLATE.render(self._start_content))
             f.write(_SPEC_DESCRIPTOR_TEMPLATE.render(content))
             f.write('\n')
 
