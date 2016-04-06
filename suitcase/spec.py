@@ -274,8 +274,7 @@ class Specfile:
     def __eq__(self, obj):
         if not isinstance(obj, Specfile):
             return False
-        return (self.filename == obj.filename and
-                self.header == obj.header and
+        return (self.header == obj.header and
                 self.parsed_header == obj.parsed_header and
                 list(self.scans.keys()) == list(obj.scans.keys()))
 
@@ -393,27 +392,36 @@ def spec_to_document(specfile, scan_ids=None, validate=False):
                          "".format(specfile))
 
     for scan in scans_to_process:
-        # do the conversion!
-        document_name, document = next(to_run_start(scan, validate=validate))
-        start_uid = document['uid']
-        # yield the start document
+        try:
+            for document_name, document in specscan_to_document_stream(
+                    scan, validate=validate):
+                yield document_name, document
+        except ValueError as ve:
+            warnings.warn(str(ve))
+
+
+def specscan_to_document_stream(scan, validate=False):
+    # do the conversion!
+    document_name, document = next(to_run_start(scan, validate=validate))
+    start_uid = document['uid']
+    # yield the start document
+    yield document_name, document
+    # yield the baseline descriptor and its event
+    for document_name, document in to_baseline(scan, start_uid,
+                                               validate=validate):
         yield document_name, document
-        # yield the baseline descriptor and its event
-        for document_name, document in to_baseline(scan, start_uid,
-                                                   validate=validate):
-            yield document_name, document
-        num_events = 0
-        for document_name, document in to_events(scan, start_uid,
-                                                 validate=validate):
-            if document_name == 'event':
-                num_events += 1
-            # yield the descriptor and events
-            yield document_name, document
-        # make sure the run was finished before it was stopped
-        # yield the stop document
-        gen = to_stop(scan, start_uid, validate=validate)
-        document_name, document = next(gen)
+    num_events = 0
+    for document_name, document in to_events(scan, start_uid,
+                                             validate=validate):
+        if document_name == 'event':
+            num_events += 1
+        # yield the descriptor and events
         yield document_name, document
+    # make sure the run was finished before it was stopped
+    # yield the stop document
+    gen = to_stop(scan, start_uid, validate=validate)
+    document_name, document = next(gen)
+    yield document_name, document
 
 
 def _validate(doc_name, doc_dict):
@@ -450,7 +458,12 @@ def to_run_start(specscan, validate=False, **md):
         The RunStart document that can be inserted into metadatastore or
         processed with a callback from the ``callbacks`` project.
     """
-    plan_type = _BLUESKY_PLAN_NAMES[_SPEC_SCAN_NAMES.index(specscan.scan_command)]
+    try:
+        idx = _SPEC_SCAN_NAMES.index(specscan.scan_command)
+    except ValueError:
+        raise ValueError("Cannot convert scan {} to a document stream"
+                         "".format(specscan.scan_id))
+    plan_type = _BLUESKY_PLAN_NAMES[idx]
     run_start_dict = {
         'time': specscan.time_from_date.timestamp(),
         'scan_id': specscan.scan_id,
@@ -458,7 +471,7 @@ def to_run_start(specscan, validate=False, **md):
         'specpath': specscan.specfile.filename,
         'owner': specscan.specfile.parsed_header['user'],
         'plan_args': specscan.scan_args,
-        'motors': [specscan.md['scan_args']['scan_motor']],
+        'motors': [specscan.col_names[0]],
         'plan_type': plan_type,
         '_name': 'RunStart'
     }
@@ -511,23 +524,23 @@ def to_baseline(specscan, start_uid, validate=False):
     data_keys.update({k: {'dtype': 'number',
                           'shape': [],
                           'source': k,
-                          'object_name': obj_name,
+                          'object_name': k,
                           'precision': -1,
                           'units': 'N/A'} for k in 'hkl'})
     data.update({k: v for k, v in zip('hkl', specscan.hkl)})
     timestamps.update({k: timestamp for k in 'hkl'})
     descriptor = dict(run_start=start_uid, data_keys=data_keys,
                       time=timestamp, uid=str(uuid.uuid4()),
-                      _name='baseline')
+                      name='baseline')
     if validate:
         _validate(event_model.DocumentNames.descriptor, descriptor)
     yield (event_model.DocumentNames.descriptor,
-           doct.Document('BaselineDescriptor', descriptor))
+           doct.Document('EventDescriptor', descriptor))
     event = dict(descriptor=descriptor['uid'], seq_num=0, time=timestamp,
                  data=data, timestamps=timestamps, uid=str(uuid.uuid4()))
     if validate:
         _validate(event_model.DocumentNames.event, event)
-    yield event_model.DocumentNames.event, doct.Document('BaselineEvent', event)
+    yield event_model.DocumentNames.event, doct.Document('Event', event)
 
 
 def to_events(specscan, start_uid, validate=False):
@@ -561,12 +574,11 @@ def to_events(specscan, start_uid, validate=False):
                        'units': 'N/A'}
                  for col in specscan.col_names}
     descriptor = dict(run_start=start_uid, data_keys=data_keys,
-                      time=timestamp, uid=str(uuid.uuid4()),
-                      name='primary')
+                      time=timestamp, uid=str(uuid.uuid4()))
     if validate:
         _validate(event_model.DocumentNames.descriptor, descriptor)
     yield (event_model.DocumentNames.descriptor,
-           doct.Document('PrimaryEventDescriptor', descriptor))
+           doct.Document('EventDescriptor', descriptor))
     timestamps = {col: timestamp for col in specscan.col_names}
     for seq_num, (x, row_series) in enumerate(specscan.scan_data.iterrows()):
         data = {col: data for col, data in zip(row_series.index, row_series[:])}
@@ -575,7 +587,7 @@ def to_events(specscan, start_uid, validate=False):
                      timestamps=timestamps, uid=str(uuid.uuid4()))
         if validate:
             _validate(event_model.DocumentNames.descriptor, descriptor)
-        yield event_model.DocumentNames.event, doct.Document('PrimaryEvent',
+        yield event_model.DocumentNames.event, doct.Document('Event',
                                                              event)
 
 
@@ -715,11 +727,12 @@ class DocumentToSpec(CallbackBase):
         #C xf11id  User = xf11id
         #O [list of all motors, all on one line]
         """
-        content = dict(filepath=self.specpath,
-                       unix_time=doc['time'],
-                       readable_time=datetime.fromtimestamp(doc['time']),
-                       owner=doc['owner'],
-                       positioners=self.pos_names)
+        content = dict(
+            filepath=self.specpath,
+           unix_time=int(doc['time']),
+           readable_time=to_spec_time(datetime.fromtimestamp(doc['time'])),
+           owner=doc['owner'],
+           positioners=self.pos_names)
         with open(self.specpath, 'w') as f:
             f.write(_SPEC_HEADER_TEMPLATE.render(content))
 
@@ -743,7 +756,7 @@ class DocumentToSpec(CallbackBase):
                 self._motor = doc['motors']
                 content['start'] = plan_args['start']
                 content['stop'] = plan_args['stop']
-                content['strides'] = int(plan_args['strides']) - 1,
+                content['strides'] = int(plan_args['strides']) - 1
             # We only support a single scanning motor right now.
             if len(self._motor) > 1:
                 raise NotImplementedError(
@@ -761,11 +774,12 @@ class DocumentToSpec(CallbackBase):
                        % plan_type)
             raise NotImplementedError(err_msg)
         # write the new scan entry
-        content = dict(command=command,
-                       scan_id=doc['scan_id'],
-                       readable_time=datetime.fromtimestamp(doc['time']),
-                       acq_time=self._acq_time,
-                       positioner_positions=self.positions)
+        content = dict(
+            command=command,
+            scan_id=doc['scan_id'],
+            readable_time=to_spec_time(datetime.fromtimestamp(doc['time'])),
+            acq_time=self._acq_time,
+            positioner_positions=self.positions)
         self._start_content = content  # can't write until after we see desc
         self._start_doc = doc
 
@@ -787,6 +801,8 @@ class DocumentToSpec(CallbackBase):
 
     def event(self, doc):
         """Write each event out"""""
+        if doc._name == 'BaselineEvent':
+            return
         data = doc['data']
         values = [str(data[k]) for k in self._read_fields]
         if self._motor == "Count":
