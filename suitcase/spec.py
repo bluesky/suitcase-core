@@ -258,7 +258,7 @@ class Specfile:
             self.scans[sid] = Specscan(self, scan)
 
     def __getitem__(self, key):
-        if isinstance(key, slice):
+        if isinstance(key, slice) or (isinstance(key, int) and key < 0):
             return list(self)[key]
 
         return self.scans[key]
@@ -273,7 +273,7 @@ class Specfile:
         return "Specfile('{}')".format(self.filename)
 
     def __eq__(self, obj):
-        if not isinstance(obj, Specfile):
+        if not isinstance(obj, type(self)):
             return False
         return (self.header == obj.header and
                 self.parsed_header == obj.parsed_header and
@@ -321,6 +321,8 @@ class Specscan:
         return len(self.scan_data)
 
     def __eq__(self, obj):
+        if not isinstance(obj, type(self)):
+            return False
         return (self.specfile == obj.specfile and
                 self.raw_scan_data == obj.raw_scan_data and
                 self.md == obj.md and

@@ -81,6 +81,9 @@ def test_equality(spec_filename):
     for s1, s2, in zip(sf1, sf2):
         assert s1 == s2
 
+    assert sf1 != 'cat'
+    assert sf1[-1] != 'cat'
+
 def test_lt(spec_filename):
     sf = Specfile(spec_filename)
     for s1, s2 in zip(sf, sf[1:]):
