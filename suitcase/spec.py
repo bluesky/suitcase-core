@@ -808,7 +808,7 @@ class DocumentToSpec(CallbackBase):
                 raise NotImplementedError(
                     "Your scan has %s scanning motors. They are %s. SpecCallback"
                     " cannot handle multiple scanning motors. Please request "
-                    "this feature at https://github.com/NSLS-II/bluesky/issues" %
+                    "this feature at https://github.com/NSLS-II/suitcase/issues" %
                     (len(self._motor), self._motor))
             self._motor, = self._motor
             content['scan_motor'] = self._motor
