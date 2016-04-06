@@ -12,7 +12,8 @@ import jinja2
 import doct
 import event_model
 import jsonschema
-
+import logging
+logger = logging.getLogger(__name__)
 # need callback base from bluesky
 try:
     from bluesky.callbacks import CallbackBase
@@ -392,12 +393,9 @@ def spec_to_document(specfile, scan_ids=None, validate=False):
                          "".format(specfile))
 
     for scan in scans_to_process:
-        try:
-            for document_name, document in specscan_to_document_stream(
-                    scan, validate=validate):
-                yield document_name, document
-        except ValueError as ve:
-            warnings.warn(str(ve))
+        for document_name, document in specscan_to_document_stream(
+                scan, validate=validate):
+            yield document_name, document
 
 
 def specscan_to_document_stream(scan, validate=False):
@@ -458,12 +456,14 @@ def to_run_start(specscan, validate=False, **md):
         The RunStart document that can be inserted into metadatastore or
         processed with a callback from the ``callbacks`` project.
     """
-    try:
-        idx = _SPEC_SCAN_NAMES.index(specscan.scan_command)
-    except ValueError:
-        raise ValueError("Cannot convert scan {} to a document stream"
-                         "".format(specscan.scan_id))
-    plan_type = _BLUESKY_PLAN_NAMES[idx]
+    if specscan.scan_command not in _SPEC_SCAN_NAMES:
+        warnings.warn("Cannot convert scan {0} to a document stream. {1} is "
+                      "not a scan that I know how to convert.  I can only "
+                      "convert {2}".format(specscan.scan_id,
+                                           specscan.scan_command,
+                                           _SPEC_SCAN_NAMES))
+        return
+    plan_type = _BLUESKY_PLAN_NAMES[_SPEC_SCAN_NAMES.index(specscan.scan_command)]
     run_start_dict = {
         'time': specscan.time_from_date.timestamp(),
         'scan_id': specscan.scan_id,
@@ -521,14 +521,20 @@ def to_baseline(specscan, start_uid, validate=False):
                                'units': 'N/A'}
         data[obj_name] = value
         timestamps[obj_name] = timestamp
-    data_keys.update({k: {'dtype': 'number',
-                          'shape': [],
-                          'source': k,
-                          'object_name': k,
-                          'precision': -1,
-                          'units': 'N/A'} for k in 'hkl'})
-    data.update({k: v for k, v in zip('hkl', specscan.hkl)})
-    timestamps.update({k: timestamp for k in 'hkl'})
+    try:
+        hkl = specscan.hkl
+    except AttributeError:
+        warnings.warn("scan {0} does not have hkl values"
+                      "".format(specscan.scan_id))
+    else:
+        data_keys.update({k: {'dtype': 'number',
+                              'shape': [],
+                              'source': k,
+                              'object_name': k,
+                              'precision': -1,
+                              'units': 'N/A'} for k in 'hkl'})
+        data.update({k: v for k, v in zip('hkl', specscan.hkl)})
+        timestamps.update({k: timestamp for k in 'hkl'})
     descriptor = dict(run_start=start_uid, data_keys=data_keys,
                       time=timestamp, uid=str(uuid.uuid4()),
                       name='baseline')
@@ -640,35 +646,211 @@ def to_stop(specscan, start_uid, validate=False, **md):
 # Document to Spec code
 ###############################################################################
 
-_SPEC_SCAN_NAMES = ['ascan', 'dscan', 'ct', 'tw']
-_BLUESKY_PLAN_NAMES = ['AbsScanPlan', 'DeltaScanPlan', 'Count', 'Tweak']
-_PLAN_TO_SPEC_MAPPING = {k: v for k, v in zip(_BLUESKY_PLAN_NAMES,
-                                              _SPEC_SCAN_NAMES)}
 
 env = jinja2.Environment()
 
-_SPEC_HEADER_TEMPLATE = env.from_string("""#F {{ filepath }}
+
+_SPEC_FILE_HEADER_TEMPLATE = env.from_string("""#F {{ filename }}
 #E {{ unix_time }}
 #D {{ readable_time }}
 #C {{ owner }}  User = {{ owner }}
-#O0 {{ positioners | join(' ') }}""")
+#O0 {{ positioner_variable_sources | join ('  ') }}
+#o0 {{ positioner_variable_names | join(' ') }}""")
 
-_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ scan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
 
-_SPEC_START_TEMPLATE = env.from_string("""
+_DEFAULT_POSITIONERS = {
+    'data_keys':
+        {'Science':
+             {'dtype': 'number', 'shape': [], 'source': 'SOME:RANDOM:PV'},
+         'Data':
+             {'dtype': 'number', 'shape': [], 'source': 'SOME:OTHER:PV'}}}
+
+
+def to_spec_file_header(start, filepath, baseline_descriptor):
+    """Generate a spec file header from some documents
+
+    Parameters
+    ----------
+    start : Document or dict
+        The RunStart that is emitted by the bluesky.run_engine.RunEngine or
+        something that is compatible with that format
+    filepath : str
+        The filename of this spec scan. Will use os.path.basename to find the
+        filename
+    baseline_descriptor : Document or dict, optional
+        The 'baseline' Descriptor document that is emitted by the RunEngine
+        or something that is compatible with that format.
+        Defaults to the values in suitcase.spec._DEFAULT_POSITIONERS
+
+    Returns
+    -------
+    str
+        The formatted SPEC file header. You probably want to split on "\n"
+    """
+    if baseline_descriptor is None:
+        baseline_descriptor = _DEFAULT_POSITIONERS
+    md = {}
+    md['owner'] = start['owner']
+    md['positioner_variable_names'] = sorted(
+            list(baseline_descriptor['data_keys'].keys()))
+    md['positioner_variable_sources'] = [
+        baseline_descriptor['data_keys'][k]['source'] for k
+        in md['positioner_variable_names']]
+    md['unix_time'] = int(start['time'])
+    md['readable_time'] = to_spec_time(datetime.fromtimestamp(md['unix_time']))
+    md['filename'] = os.path.basename(filepath)
+    return _SPEC_FILE_HEADER_TEMPLATE.render(md)
+
+
+_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
+
+_SPEC_SCAN_NAMES = ['ascan', 'dscan']
+_NOT_IMPLEMENTED_SCAN = 'Other'
+_BLUESKY_PLAN_NAMES = ['AbsScanPlan', 'DeltaScanPlan']
+
+_SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 
 #S {{ scan_id }} {{ command }}
 #D {{ readable_time }}
 #T {{ acq_time }}  (Seconds)
-#P0 {{ positioner_positions | join(' ')}}""")
+#P0 {{ positioner_positions | join(' ')}}
+#N {{ num_columns }}
+#L {{ motor_name }}  Epoch  Seconds  {{ data_keys | join('  ') }}
+""")
 
-# It is critical that the spacing on the #L line remain exactly like this!
-_SPEC_DESCRIPTOR_TEMPLATE = env.from_string("""
-#N {{ length }}
-#L {{ motor_name }}  Epoch  Seconds  {{ data_keys | join('  ') }}\n""")
 
-_SPEC_EVENT_TEMPLATE = env.from_string(
-    """{{ motor_position }}  {{ unix_time }} {{ acq_time }} {{ values | join(' ') }}\n""")
+def _get_acq_time(start, default_value=-1):
+    """Private helper function to extract the acquisition time from the Start
+    document
+
+    Parameters
+    ----------
+    start : Document or dict
+        The RunStart document emitted by the bluesky RunEngine or a dictionary
+        that has compatible information
+    default_value : int, optional
+        The default acquisition time. Defaults to -1
+    """
+    try:
+        return start['plan_args']['time']
+    except KeyError:
+        return default_value
+
+
+def _get_plan_type(start):
+    plan_type = start['plan_type']
+    if plan_type not in _BLUESKY_PLAN_NAMES:
+        warnings.warn(
+            "Do not know how to represent {} in SPEC. If you would like this "
+            "feature, request it at https://github.com/NSLS-II/bluesky/issues. "
+            "Until this feature is implemented, we will be using the sequence "
+            "number as the motor position".format(plan_type))
+        return _NOT_IMPLEMENTED_SCAN
+    return _SPEC_SCAN_NAMES[_BLUESKY_PLAN_NAMES.index(plan_type)]
+
+
+def _get_motor_name(start):
+    plan_type = _get_plan_type(start)
+    if plan_type == _NOT_IMPLEMENTED_SCAN:
+        return 'seq_num'
+    motor_name = start['motors']
+    # We only support a single scanning motor right now.
+    if len(motor_name) > 1:
+        warnings.warn(
+            "Your scan has {0} scanning motors. They are {1}. Conversion to a"
+            "specfile does not understand what to do with multiple scanning. "
+            "Please request this feature at "
+            "https://github.com/NSLS-II/suitcase/issues Until this feature is "
+            "implemented, we will be using the sequence number as the motor "
+            "position".format(
+                (len(motor_name), motor_name)))
+        return 'seq_num'
+    return motor_name[0]
+
+
+def _get_motor_position(start, event):
+    plan_type = _get_plan_type(start)
+    # make sure we are trying to get the motor position for an implemented scan
+    if plan_type == _NOT_IMPLEMENTED_SCAN:
+        return event['seq_num']
+    motor_name = _get_motor_name(start)
+    # make sure we have a motor name that we can get data for. Otherwise we use
+    # the sequence number of the event
+    if motor_name == 'seq_num':
+        return event['seq_num']
+    # if none of the above conditions are met, we can get a motor value. Thus we
+    # return the motor value in the event
+    return event['data'][motor_name]
+
+
+def _get_scan_data_column_names(start, primary_descriptor):
+    motor_name = _get_motor_name(start)
+    # List all scalar fields, excluding the motor (x variable).
+    read_fields = sorted(
+        [k for k, v in primary_descriptor['data_keys'].items()
+         if (v['object_name'] != motor_name and not v['shape'])])
+    return read_fields
+
+
+def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
+    """Convert the RunStart, "primary" Descriptor and the "baseline" Event
+    into a spec scan header
+
+    Parameters
+    ----------
+    start : Document or dict
+        The RunStart document emitted by the bluesky RunEngine or a dictionary
+        that has compatible information
+    primary_descriptor : Document or dict
+        The Descriptor that corresponds to the main event stream
+    baseline_event : Document or dict, optional
+        The Event that corresponds to the mass reading of motors before the
+        scan begins.
+        Default value is `-1` for each of the keys in
+        `suitcase.spec._DEFAULT_POSITIONERS`
+
+    Returns
+    -------
+    str
+        The formatted SPEC scan header. You probably want to split on "\n"
+    """
+    if baseline_event is None:
+        baseline_event = {
+            'data':
+                {k: -1 for k in _DEFAULT_POSITIONERS['data_keys']}}
+    md = {}
+    md['scan_id'] = start['scan_id']
+    scan_command = _get_plan_type(start)
+    motor_name = _get_motor_name(start)
+    acq_time = _get_acq_time(start)
+    md['command'] = ' '.join(
+            [scan_command, motor_name] +
+            [start['plan_args'][k]
+             for k in ('start', 'stop', 'strides')] +
+            [acq_time])
+    md['readable_time'] = to_spec_time(datetime.fromtimestamp(start['time']))
+    md['acq_time'] = acq_time
+    md['positioner_positions'] = [
+        v for k, v in sorted(baseline_event['data'].items())]
+    md['data_keys'] = _get_scan_data_column_names(start, primary_descriptor)
+    md['num_columns'] = 3 + len(md['data_keys'])
+    md['motor_name'] = _get_motor_name(start)
+    return _SPEC_SCAN_HEADER_TEMPLATE.render(md)
+
+
+_SPEC_EVENT_TEMPLATE = env.from_string("""
+{{ motor_position }}  {{ unix_time }} {{ acq_time }} {{ values | join(' ') }}""")
+
+
+def to_spec_scan_data(start, primary_descriptor, event):
+    md = {}
+    md['unix_time'] = int(event['time'])
+    md['acq_time'] = _get_acq_time(start)
+    md['motor_position'] = _get_motor_position(start, event)
+    data_keys = _get_scan_data_column_names(start, primary_descriptor)
+    md['values'] = [event['data'][k] for k in data_keys]
+    return _SPEC_EVENT_TEMPLATE.render(md)
+
 
 class DocumentToSpec(CallbackBase):
     """Callback to export scalar values to a spec file for viewing
@@ -677,25 +859,28 @@ class DocumentToSpec(CallbackBase):
         `
     1. a descriptor named 'baseline'
     2. an event for that descriptor
-    3. a descriptor named 'main'
-    4. events for that descriptor
+    3. one primary descriptor
+    4. events for that one primary descriptor
 
-    Other documents can be issues before, between, and after, but
-    these must be issued and in this order.
+    Other documents can be received before, between, and after, but
+    these must be received and in this order.
 
     Example
     -------
     It is suggested to put this in the ipython profile:
-    >>> from bluesky.callbacks import LiveSpecFile
-    >>> live_specfile_callback = LiveSpecFile(os.path.expanduser('~/specfiles/test.spec'))
-    >>> gs.RE.subscribe('all', live_specfile_callback)
+    >>> from suitcase.spec import DocumentToSpec
+    >>> document_to_spec_callback =  DocumentToSpec(os.path.expanduser('~/specfiles/test.spec'))
+    >>> gs.RE.subscribe('all', document_to_spec_callback)
     >>> # Modify the spec file location like this:
-    >>> # live_specfile_callback.filepath = '/some/new/filepath.spec'
+    >>> # document_to_spec_callback.filepath = '/some/new/filepath.spec'
 
     Notes
     -----
-    `Reference <https://github.com/certified-spec/specPy/blob/master/doc/specformat.rst>`_
-    for the spec file format.
+    1. `Reference <https://github.com/certified-spec/specPy/blob/master/doc/specformat.rst>`_
+        for the spec file format.
+    2. If there is more than one primary descriptor, the behavior of this spec
+       callback is undefined.  Please do not use this callback with more than
+       one descriptor.
     """
     def __init__(self, specpath):
         """
@@ -704,116 +889,194 @@ class DocumentToSpec(CallbackBase):
         specpath : str
             The location on disk where you want the specfile to be written
         """
-        self.specpath = specpath
+        self.specpath = os.path.abspath(specpath)
         self.pos_names = ["No", "Positioners", "Were", "Given"]
         self.positions = ["-inf", "-inf", "-inf", "-inf"]
-
-    def _write_spec_header(self, doc):
-        """
-        Parameters
-        ----------
-        doc : start document from bluesky
-
-        Returns
-        -------
-        spec_header : list
-            The spec header as a list of lines
-        Note
-        ----
-        Writes a new spec file header that looks like this:
-        #F /home/xf11id/specfiles/test.spec
-        #E 1449179338.3418093
-        #D 2015-12-03 16:48:58.341809
-        #C xf11id  User = xf11id
-        #O [list of all motors, all on one line]
-        """
-        content = dict(
-            filepath=self.specpath,
-            unix_time=int(doc['time']),
-            readable_time=to_spec_time(datetime.fromtimestamp(doc['time'])),
-            owner=doc['owner'],
-            positioners=self.pos_names)
-        with open(self.specpath, 'w') as f:
-            f.write(_SPEC_HEADER_TEMPLATE.render(content))
+        self._start = None
+        self._baseline_descriptor = None
+        self._baseline_event = None
+        self._primary_descriptor = None
+        self._has_not_written_scan_header = True
+        self._num_events_received = 0
+        self._num_baseline_events_received = 0
 
     def start(self, doc):
-        if not os.path.exists(self.specpath):
-            spec_header = self._write_spec_header(doc)
-        # TODO verify that list of positioners is unchanged  by reading file
-        # and parsing any existing contents.
-        plan_type = doc['plan_type']
-        plan_args = doc['plan_args']
-        if plan_type in _PLAN_TO_SPEC_MAPPING.keys():
-            # Some of these are used in other methods too -- stash them.
-            self._unix_time = doc['time']
-            self._acq_time = plan_args.get('time', -1)
-            content = dict(scan_type=_PLAN_TO_SPEC_MAPPING[doc['plan_type']],
-                           acq_time=self._acq_time)
-            if plan_type == 'Count':
-                # count has no motor. Have to fake one.
-                self._motor = ['Count']
-            else:
-                self._motor = doc['motors']
-                content['start'] = plan_args['start']
-                content['stop'] = plan_args['stop']
-                content['strides'] = int(plan_args['strides']) - 1
-            # We only support a single scanning motor right now.
-            if len(self._motor) > 1:
-                raise NotImplementedError(
-                    "Your scan has %s scanning motors. They are %s. SpecCallback"
-                    " cannot handle multiple scanning motors. Please request "
-                    "this feature at https://github.com/NSLS-II/bluesky/issues" %
-                    (len(self._motor), self._motor))
-            self._motor, = self._motor
-            content['scan_motor'] = self._motor
-            command = _SPEC_1D_COMMAND_TEMPLATE.render(content)
-        else:
-            err_msg = ("Do not know how to represent %s in SPEC. If "
-                       "you would like this feature, request it at "
-                       "https://github.com/NSLS-II/bluesky/issues"
-                       % plan_type)
-            raise NotImplementedError(err_msg)
-        # write the new scan entry
-        content = dict(
-            command=command,
-            scan_id=doc['scan_id'],
-            readable_time=to_spec_time(datetime.fromtimestamp(doc['time'])),
-            acq_time=self._acq_time,
-            positioner_positions=self.positions)
-        self._start_content = content  # can't write until after we see desc
-        self._start_doc = doc
+        """
+        Stash the start document and reset the internal state
+        """
+        logger.debug("start document received")
+        self._start = doc
+        self._baseline_descriptor = None
+        self._baseline_event = None
+        self._primary_descriptor = None
+        self._has_not_written_scan_header = True
+        self._num_events_received = 0
+        self._num_baseline_events_received = 0
+
+    def _write_new_header(self, baseline):
+        header = to_spec_file_header(self._start, self.specpath, baseline)
+        with open(self.specpath, 'w') as f:
+            f.write(header)
 
     def descriptor(self, doc):
-        """Write the header for the actual scan data"""
-        # List all scalar fields, excluding the motor (x variable).
-        self._read_fields = sorted([k for k, v in doc['data_keys'].items()
-                                    if (v['object_name'] != self._motor
-                                        and not v['shape'])])
-        content = dict(motor_name=self._motor,
-                       acq_time=self._acq_time,
-                       unix_time=self._unix_time,
-                       length=3 + len(self._read_fields),
-                       data_keys=self._read_fields)
-        with open(self.specpath, 'a') as f:
-            f.write(_SPEC_START_TEMPLATE.render(self._start_content))
-            f.write(_SPEC_DESCRIPTOR_TEMPLATE.render(content))
-            f.write('\n')
+        if doc.get('name') == 'baseline':
+            logger.debug("baseline descriptor received")
+            # if this is the baseline descriptor, we might need to write a
+            # new file header
+            self._baseline_descriptor = doc
+            if not os.path.exists(self.specpath):
+                logger.debug("Writing new spec file header")
+                self._write_new_header(doc)
+            else:
+                logger.debug("Writing data into new spec file")
+                sf = Specfile(self.specpath)
+                # See if we need to write a new header
+                if (set(list(sf.parsed_header['motor_spec_names'])) !=
+                        set(list(doc.data_keys.keys()))):
+                    self.specpath = os.path.join(
+                            os.pardir(self.specpath),
+                            datetime.now().strftime('%Y-%m-%d::%H:%M'))
+                    self._write_new_header(doc)
+        elif self._primary_descriptor:
+            # we already have a primary descriptor, why are we getting
+            # another one?
+            err_msg = (
+                "The DocumentToSpec callback is not designed to handle more "
+                "than one event stream.  If you need this functionality, please "
+                "request it at https://github.com/NSLS-II/suitcase/issues. "
+                "Until that time, this DocumentToSpec callback will raise a "
+                "NotImplementedError if you try to use it with two event "
+                "streams.")
+            warnings.warn(err_msg)
+            raise NotImplementedError(err_msg)
+        else:
+            logger.debug("primary descriptor received")
+            self._primary_descriptor = doc
 
     def event(self, doc):
-        """Write each event out"""""
-        if doc._name == 'BaselineEvent':
+        if (self._baseline_descriptor and
+                    doc.descriptor == self._baseline_descriptor.uid):
+            logger.debug("Received baseline event document")
+            self._num_baseline_events_received += 1
+            self._baseline_event = doc
             return
-        data = doc['data']
-        values = [str(data[k]) for k in self._read_fields]
-        if self._motor == "Count":
-            doc['data']['Count'] = -1
-        content = dict(acq_time=self._acq_time,
-                       unix_time=doc['time'],
-                       motor_position=data[self._motor],
-                       values=values)
+        # Write the scan header as soon as we get the first event.  If it is
+        # not the baseline event, then sorry! You need to give me that before
+        # any primary events.
+        if self._has_not_written_scan_header:
+            if self._baseline_event is None:
+                err_msg = (
+                    "No baseline event was received. If you want the motor "
+                    "positions for non-scanning motors, you need to implement "
+                    "your scans with baseline events being recorded. If you "
+                    "need help doing this, please request help at "
+                    "https://github.com/NSLS-II/Bug-Reports/issues")
+                warnings.warn(err_msg)
+            # write the scan header with whatever information we currently have
+            scan_header = to_spec_scan_header(self._start,
+                                              self._primary_descriptor,
+                                              self._baseline_event)
+            with open(self.specpath, 'a') as f:
+                f.write(scan_header)
+            self._has_not_written_scan_header = False
+
+        if doc.descriptor != self._primary_descriptor.uid:
+            err_msg = (
+                "The DocumentToSpec callback is not designed to handle more "
+                "than one event stream.  If you need this functionality, please "
+                "request it at https://github.com/NSLS-II/suitcase/issues. "
+                "Until that time, this DocumentToSpec callback will raise a "
+                "NotImplementedError if you try to use it with two event "
+                "streams.")
+            warnings.warn(err_msg)
+            raise NotImplementedError(err_msg)
+        # We must be receiving a primary event
+        logger.debug("Received primary event document")
+        self._num_events_received += 1
+        # now write the scan data line
+        scan_data_line = to_spec_scan_data(self._start,
+                                           self._primary_descriptor, doc)
         with open(self.specpath, 'a') as f:
-            f.write(_SPEC_EVENT_TEMPLATE.render(content))
-            f.write('\n')
+            f.write(scan_data_line)
+
+    def stop(self, doc):
+        logger.debug("Received stop document")
+        if doc['exit_status'] != 'success':
+            with open(self.specpath, 'a') as f:
+                f.write('\n')
+                f.write('#C Run exited with status: {exit_status}. Reason: '
+                        '{reason}'.format(**doc))
+    #
+    #     plan_type = doc['plan_type']
+    #     plan_args = doc['plan_args']
+    #     if plan_type in _PLAN_TO_SPEC_MAPPING.keys():
+    #         # Some of these are used in other methods too -- stash them.
+    #         self._unix_time = doc['time']
+    #         self._acq_time = plan_args.get('time', -1)
+    #         content = dict(plan_type=_PLAN_TO_SPEC_MAPPING[doc['plan_type']],
+    #                        acq_time=self._acq_time)
+    #         if plan_type == 'Count':
+    #             # count has no motor. Have to fake one.
+    #             self._motor = ['Count']
+    #         else:
+    #             self._motor = doc['motors']
+    #             content['start'] = plan_args['start']
+    #             content['stop'] = plan_args['stop']
+    #             content['strides'] = int(plan_args['strides']) - 1,
+    #         # We only support a single scanning motor right now.
+    #         if len(self._motor) > 1:
+    #             raise NotImplementedError(
+    #                 "Your scan has %s scanning motors. They are %s. SpecCallback"
+    #                 " cannot handle multiple scanning motors. Please request "
+    #                 "this feature at https://github.com/NSLS-II/suitcase/issues" %
+    #                 (len(self._motor), self._motor))
+    #         self._motor, = self._motor
+    #         content['scan_motor'] = self._motor
+    #         command = _SPEC_1D_COMMAND_TEMPLATE.render(content)
+    #     else:
+    #         err_msg = ("Do not know how to represent %s in SPEC. If "
+    #                    "you would like this feature, request it at "
+    #                    "https://github.com/NSLS-II/bluesky/issues"
+    #                    % plan_type)
+    #         raise NotImplementedError(err_msg)
+    #     # write the new scan entry
+    #     content = dict(command=command,
+    #                    scan_id=doc['scan_id'],
+    #                    readable_time=datetime.fromtimestamp(doc['time']),
+    #                    acq_time=self._acq_time,
+    #                    positioner_positions=self.positions)
+    #     self._start_content = content  # can't write until after we see desc
+    #     self._start_doc = doc
+    #
+    # def descriptor(self, doc):
+    #     """Write the header for the actual scan data"""
+    #     # List all scalar fields, excluding the motor (x variable).
+    #     self._read_fields = sorted([k for k, v in doc['data_keys'].items()
+    #                                 if (v['object_name'] != self._motor
+    #                                     and not v['shape'])])
+    #     content = dict(motor_name=self._motor,
+    #                    acq_time=self._acq_time,
+    #                    unix_time=self._unix_time,
+    #                    length=3 + len(self._read_fields),
+    #                    data_keys=self._read_fields)
+    #     with open(self.specpath, 'a') as f:
+    #         f.write(_SPEC_SCAN_HEADER_TEMPLATE.render(self._start_content))
+    #         f.write(_SPEC_DESCRIPTOR_TEMPLATE.render(content))
+    #         f.write('\n')
+    #
+    # def event(self, doc):
+    #     """Write each event out"""""
+    #     data = doc['data']
+    #     values = [str(data[k]) for k in self._read_fields]
+    #     if self._motor == "Count":
+    #         doc['data']['Count'] = -1
+    #     content = dict(acq_time=self._acq_time,
+    #                    unix_time=doc['time'],
+    #                    motor_position=data[self._motor],
+    #                    values=values)
+    #     with open(self.specpath, 'a') as f:
+    #         f.write(_SPEC_EVENT_TEMPLATE.render(content))
+    #         f.write('\n')
 
 #     def future_descriptor(self, doc):
 #         """Write the header for the actual scan data
