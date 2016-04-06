@@ -647,7 +647,7 @@ _SPEC_START_TEMPLATE = env.from_string("""
 
 #S {{ scan_id }} {{ command }}
 #D {{ readable_time }}
-#T {{ acq_time }} (Seconds)
+#T {{ acq_time }}  (Seconds)
 #P0 {{ positioner_positions | join(' ')}}""")
 
 # It is critical that the spacing on the #L line remain exactly like this!
