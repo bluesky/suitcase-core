@@ -427,6 +427,7 @@ def to_run_start(specscan, **md):
         The RunStart document that can be inserted into metadatastore or
         processed with a callback from the ``callbacks`` project.
     """
+    plan_type = _BLUESKY_PLAN_NAMES[_SPEC_SCAN_NAMES.index(specscan.scan_command)]
     run_start_dict = {
         'time': specscan.time_from_date.timestamp(),
         'scan_id': specscan.scan_id,
@@ -435,7 +436,7 @@ def to_run_start(specscan, **md):
         'owner': specscan.specfile.parsed_header['user'],
         'plan_args': specscan.scan_args,
         'motors': [specscan.md['scan_args']['scan_motor']],
-        'plan_type': specscan.scan_command,
+        'plan_type': plan_type,
     }
     run_start_dict.update(**md)
     yield 'start', run_start_dict
@@ -622,12 +623,10 @@ def to_spec_file_header(start, filepath, baseline_descriptor):
 
 _SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
 
-
-_PLAN_TO_SPEC_MAPPING = {'AbsScanPlan': 'ascan',
-                         'DeltaScanPlan': 'dscan',
-                         'Count': 'ct',
-                         'Tweak': 'tw'}
-
+_SPEC_SCAN_NAMES = ['ascan', 'dscan', 'ct', 'tw']
+_BLUESKY_PLAN_NAMES = ['AbsScanPlan', 'DeltaScanPlan', 'Count', 'Tweak']
+_PLAN_TO_SPEC_MAPPING = {k: v for k, v in zip(_BLUESKY_PLAN_NAMES,
+                                              _SPEC_SCAN_NAMES)}
 
 _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 
