@@ -154,6 +154,9 @@ def parse_spec_scan(raw_scan_data):
     md['scan_command'] = S_row.pop(0)
     md['scan_args'] = {k: v for k, v in zip(
         ['scan_motor', 'start', 'stop', 'strides', 'time'], S_row)}
+    md['motors'] = [md['plan_args']['scan_motor']]
+    # Not sure how to add the 'detectors' line to the RunStart
+    # md['detectors'] =
     md['motor_values'] = []
     md['geometry'] = []
     line_hash_mapping = {
@@ -431,7 +434,8 @@ def to_run_start(specscan, **md):
         'specpath': specscan.specfile.filename,
         'owner': specscan.specfile.parsed_header['user'],
         'plan_args': specscan.scan_args,
-        'scan_type': specscan.scan_command,
+        'motors': [specscan.md['scan_args']['scan_motor']],
+        'plan_type': specscan.scan_command,
     }
     run_start_dict.update(**md)
     yield 'start', run_start_dict
