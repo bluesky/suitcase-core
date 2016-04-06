@@ -157,7 +157,7 @@ def parse_spec_scan(raw_scan_data):
     md['scan_id'] = int(S_row.pop(0))
     md['scan_command'] = S_row.pop(0)
     md['scan_args'] = {k: v for k, v in zip(
-        ['scan_motor', 'start', 'stop', 'strides', 'time'], S_row)}
+        ['scan_motor', 'start', 'stop', 'num', 'time'], S_row)}
     md['motors'] = [md['scan_args']['scan_motor']]
     # Not sure how to add the 'detectors' line to the RunStart
     # md['detectors'] =
@@ -624,7 +624,7 @@ def to_stop(specscan, start_uid, validate=False, **md):
     """
     md['exit_status'] = 'success'
     actual_events = len(specscan.scan_data)
-    expected_events = int(specscan.scan_args['strides']) + 1
+    expected_events = int(specscan.scan_args['num']) + 1
     if actual_events != expected_events:
         md['reason'] = ('Expected events: {}. Actual events: {}'
                         ''.format(expected_events, actual_events))
@@ -702,7 +702,7 @@ def to_spec_file_header(start, filepath, baseline_descriptor):
     return _SPEC_FILE_HEADER_TEMPLATE.render(md)
 
 
-_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
+_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ num }} {{ time }}")
 
 _SPEC_SCAN_NAMES = ['ascan', 'dscan']
 _NOT_IMPLEMENTED_SCAN = 'Other'
@@ -823,11 +823,11 @@ def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
     scan_command = _get_plan_type(start)
     motor_name = _get_motor_name(start)
     acq_time = _get_acq_time(start)
-    md['command'] = ' '.join(
-            [scan_command, motor_name] +
-            [start['plan_args'][k]
-             for k in ('start', 'stop', 'strides')] +
-            [acq_time])
+    command_list = ([scan_command, motor_name] +
+                    [start['plan_args'][k] for k in ('start', 'stop', 'num')] +
+                    [acq_time])
+    # have to ensure all list elements are strings or join gets angry
+    md['command'] = ' '.join([str(s) for s in command_list])
     md['readable_time'] = to_spec_time(datetime.fromtimestamp(start['time']))
     md['acq_time'] = acq_time
     md['positioner_positions'] = [
