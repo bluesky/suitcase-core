@@ -620,7 +620,7 @@ def to_spec_file_header(start, filepath, baseline_descriptor):
     return _SPEC_FILE_HEADER_TEMPLATE.render(md)
 
 
-_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ scan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
+_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ strides }} {{ time }}")
 
 
 _PLAN_TO_SPEC_MAPPING = {'AbsScanPlan': 'ascan',
@@ -686,9 +686,9 @@ def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
                 {k: -1 for k in _DEFAULT_POSITIONERS['data_keys']}}
     md = {}
     md['scan_id'] = start['scan_id']
-    scan_command = start['scan_type']
+    scan_command = start['plan_type']
     if scan_command in _PLAN_TO_SPEC_MAPPING:
-        scan_command = _PLAN_TO_SPEC_MAPPING[start['scan_type']]
+        scan_command = _PLAN_TO_SPEC_MAPPING[start['plan_type']]
     acq_time = _get_acq_time(start)
     md['command'] = ' '.join(
             [scan_command] +
@@ -793,7 +793,7 @@ class DocumentToSpec(CallbackBase):
             # Some of these are used in other methods too -- stash them.
             self._unix_time = doc['time']
             self._acq_time = plan_args.get('time', -1)
-            content = dict(scan_type=_PLAN_TO_SPEC_MAPPING[doc['plan_type']],
+            content = dict(plan_type=_PLAN_TO_SPEC_MAPPING[doc['plan_type']],
                            acq_time=self._acq_time)
             if plan_type == 'Count':
                 # count has no motor. Have to fake one.
