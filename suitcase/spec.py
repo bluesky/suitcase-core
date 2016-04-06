@@ -53,10 +53,10 @@ def to_spec_time(datetime_object):
 # (ascan start stop step exposure_time) does not map well on to this "single
 # semantic meaning" splitter
 spec_line_parser = {
-    '#D': ('time_from_date',
-           lambda x: from_spec_time(x)),
+    '#D': ('time_from_date', from_spec_time),
     '#E': ('time',
            lambda x: datetime.fromtimestamp(int(x))),
+    '#F': ('filename', str),
     # The exposure time
     '#N': ('num_points', int),
     # The h, k, l coordinates
