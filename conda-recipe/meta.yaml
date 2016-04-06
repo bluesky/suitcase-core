@@ -15,14 +15,21 @@ requirements:
     - python
   run:
     - python
-    - numpy
+    - bluesky # until callbacks is removed from bluesky this is needed for `CallbackBase`
     - databroker
+    - doct
+    - event-model
     - h5py
+    - jinja2
+    - metadatastore
+    - numpy
     - pandas
 
 test:
   imports:
     - suitcase
+    - suitcase.spec
+    - suitcase.hdf5
 
 about:
   home: http://scikit-beam.github.io/scikit-beam/

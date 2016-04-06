@@ -10,11 +10,4 @@ setup(
     description='Tools for exporting data from NSLS-II',
     url='http://github.com/NSLS-II/suitcase',
     platforms='Cross platform (Linux, Mac OSX, Windows)',
-    install_requires=[
-        'six',
-        'h5py',
-        'numpy',
-        'databroker',
-        'pandas',
-    ],
 )
