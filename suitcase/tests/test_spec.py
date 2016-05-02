@@ -8,7 +8,7 @@ from metadatastore.commands import (insert_run_start, insert_descriptor,
 from metadatastore.test.utils import mds_setup, mds_teardown
 
 from databroker import db
-from databroker.databroker import Header
+from databroker.core import Header
 import tempfile
 
 

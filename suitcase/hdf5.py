@@ -3,7 +3,7 @@ import warnings
 import h5py
 import json
 from metadatastore.commands import get_events_generator
-from databroker.databroker import fill_event, Header
+from databroker.core import fill_event, Header
 
 
 __version__ = "0.2.2"
