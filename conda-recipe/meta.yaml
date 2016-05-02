@@ -15,7 +15,6 @@ requirements:
     - python
   run:
     - python
-    - bluesky # until callbacks is removed from bluesky this is needed for `CallbackBase`
     - databroker
     - doct
     - event-model

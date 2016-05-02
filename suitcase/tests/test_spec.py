@@ -124,6 +124,10 @@ def test_round_trip_from_specfile(spec_filename):
 
 
 def test_round_trip_from_run_engine():
+    try:
+        import bluesky
+    except ImportError as ie:
+        raise pytest.skip('ImportError: {0}'.format(ie))
     # generate a new specfile
     from bluesky.tests.utils import setup_test_run_engine
     from bluesky.examples import motor, det

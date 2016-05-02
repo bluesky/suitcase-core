@@ -14,12 +14,6 @@ import event_model
 import jsonschema
 import logging
 logger = logging.getLogger(__name__)
-# need callback base from bluesky
-try:
-    from bluesky.callbacks import CallbackBase
-except ImportError as ie:
-    warnings.warn("bluesky.callbacks package is required for some spec "
-                  "functionality.")
 
 # The way that SPEC time is formatted
 SPEC_TIME_FORMAT = '%a %b %d %H:%M:%S %Y'
@@ -851,6 +845,32 @@ def to_spec_scan_data(start, primary_descriptor, event):
     data_keys = _get_scan_data_column_names(start, primary_descriptor)
     md['values'] = [event['data'][k] for k in data_keys]
     return _SPEC_EVENT_TEMPLATE.render(md)
+
+
+# Copied from bluesky.  This should probably be replaced by an import from
+# the callbacks package that will be created from the bluesky.callbacks
+# subpackage at some point.
+class CallbackBase:
+    def __call__(self, name, doc):
+        """
+        Dispatch to methods expecting particular doc types.
+        """
+        return getattr(self, name)(doc)
+
+    def event(self, doc):
+        pass
+
+    def bulk_events(self, doc):
+        pass
+
+    def descriptor(self, doc):
+        pass
+
+    def start(self, doc):
+        pass
+
+    def stop(self, doc):
+        pass
 
 
 class DocumentToSpec(CallbackBase):
