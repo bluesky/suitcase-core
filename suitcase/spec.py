@@ -430,6 +430,30 @@ def _validate(doc_name, doc_dict):
     """
     jsonschema.validate(doc_dict, event_model.schemas[doc_name])
 
+
+def _get_timestamp(dt):
+    """
+    Helper function to utilize the new datetime.timestamp() functionality
+    in python 3 with the old method that is required for python 2
+
+    Parameters
+    ----------
+    dt : datetime.datetime
+        Datetime object
+
+    Returns
+    -------
+    timestamp : float
+        Total seconds since 1970
+    """
+    try:
+        # python 3 :-D
+        return dt.timestamp()
+    except AttributeError:
+        # python 2 :-(
+        return (dt - datetime(1970, 1, 1)).total_seconds()
+
+
 def to_run_start(specscan, validate=False, **md):
     """Convert a Specscan object into a RunStart document
 
@@ -461,7 +485,7 @@ def to_run_start(specscan, validate=False, **md):
         return
     plan_type = _BLUESKY_PLAN_NAMES[_SPEC_SCAN_NAMES.index(specscan.scan_command)]
     run_start_dict = {
-        'time': specscan.time_from_date.timestamp(),
+        'time': _get_timestamp(specscan.time_from_date),
         'scan_id': specscan.scan_id,
         'uid': str(uuid.uuid4()),
         'specpath': specscan.specfile.filename,
@@ -501,7 +525,7 @@ def to_baseline(specscan, start_uid, validate=False):
         documents can be inserted into into metadatastore or processed with a
         callback from the ``callbacks`` project.
     """
-    timestamp = specscan.time_from_date.timestamp()
+    timestamp = _get_timestamp(specscan.time_from_date)
     data_keys = {}
     data = {}
     timestamps = {}
@@ -567,7 +591,7 @@ def to_events(specscan, start_uid, validate=False):
         can be inserted into into metadatastore or processed with a callback
         from the ``callbacks`` project.
     """
-    timestamp = specscan.time_from_date.timestamp()
+    timestamp = _get_timestamp(specscan.time_from_date)
     data_keys = {col: {'dtype': 'number',
                        'shape': [],
                        'source': col,
@@ -630,7 +654,7 @@ def to_stop(specscan, start_uid, validate=False, **md):
                                                  actual_events,
                                                  expected_events,
                                                  start_uid))
-    timestamp = specscan.time_from_date.timestamp()
+    timestamp = _get_timestamp(specscan.time_from_date)
     stop = dict(run_start=start_uid, time=timestamp, uid=str(uuid.uuid4()),
                 **md)
     if validate:
