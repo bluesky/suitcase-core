@@ -644,9 +644,17 @@ def to_stop(specscan, start_uid, validate=False, **md):
         The RunStop document that can be inserted into into metadatastore or
         processed with a callback from the ``callbacks`` project.
     """
+
     md['exit_status'] = 'success'
     actual_events = len(specscan.scan_data)
-    expected_events = int(specscan.scan_args['num']) + 1
+    if specscan.scan_command == _NOT_IMPLEMENTED_SCAN:
+        # not sure how many events we should have. Assume it exited correctly
+        expected_events = actual_events
+    elif specscan.scan_command in _SCANS_WITHOUT_MOTORS:
+        expected_events = 1
+    else:
+        expected_events = int(specscan.scan_args['num']) + 1
+
     if actual_events != expected_events:
         md['reason'] = ('Expected events: {}. Actual events: {}'
                         ''.format(expected_events, actual_events))
@@ -726,9 +734,11 @@ def to_spec_file_header(start, filepath, baseline_descriptor=None):
 
 _SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ num }} {{ time }}")
 
-_SPEC_SCAN_NAMES = ['ascan', 'dscan']
+_SCANS_WITHOUT_MOTORS = ['ct']
+_SCANS_WITH_MOTORS = ['ascan', 'dscan']
+_SPEC_SCAN_NAMES = _SCANS_WITH_MOTORS + _SCANS_WITHOUT_MOTORS
 _NOT_IMPLEMENTED_SCAN = 'Other'
-_BLUESKY_PLAN_NAMES = ['Scan', 'RelativeScan']
+_BLUESKY_PLAN_NAMES = ['Scan', 'RelativeScan', 'Count']
 
 _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 
@@ -773,7 +783,7 @@ def _get_plan_type(start):
 
 def _get_motor_name(start):
     plan_type = _get_plan_type(start)
-    if plan_type == _NOT_IMPLEMENTED_SCAN:
+    if plan_type == _NOT_IMPLEMENTED_SCAN or plan_type in _SCANS_WITHOUT_MOTORS:
         return 'seq_num'
     motor_name = start['motors']
     # We only support a single scanning motor right now.
@@ -792,7 +802,7 @@ def _get_motor_name(start):
 def _get_motor_position(start, event):
     plan_type = _get_plan_type(start)
     # make sure we are trying to get the motor position for an implemented scan
-    if plan_type == _NOT_IMPLEMENTED_SCAN:
+    if plan_type == _NOT_IMPLEMENTED_SCAN or plan_type in _SCANS_WITHOUT_MOTORS:
         return event['seq_num']
     motor_name = _get_motor_name(start)
     # make sure we have a motor name that we can get data for. Otherwise we use
@@ -844,9 +854,14 @@ def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
     scan_command = _get_plan_type(start)
     motor_name = _get_motor_name(start)
     acq_time = _get_acq_time(start)
-    command_list = ([scan_command, motor_name] +
-                    [start['plan_args'][k] for k in ('start', 'stop', 'num')] +
-                    [acq_time])
+    # can only grab start/stop/num if we are a dscan or ascan.
+    if (scan_command == _NOT_IMPLEMENTED_SCAN or
+            scan_command in _SCANS_WITHOUT_MOTORS):
+        command_args = []
+    else:
+        command_args = [start['plan_args'][k]
+                        for k in ('start', 'stop', 'num')]
+    command_list = ([scan_command, motor_name] + command_args + [acq_time])
     # have to ensure all list elements are strings or join gets angry
     md['command'] = ' '.join([str(s) for s in command_list])
     md['readable_time'] = to_spec_time(datetime.fromtimestamp(start['time']))

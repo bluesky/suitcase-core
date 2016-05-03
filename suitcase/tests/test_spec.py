@@ -156,14 +156,14 @@ def test_round_trip_from_run_engine():
     # generate a new specfile
     from bluesky.tests.utils import setup_test_run_engine
     from bluesky.examples import motor, det
-    from bluesky.plans import RelativeScan, Plan, Count
+    from bluesky.plans import RelativeScan, Scan, Count
     RE = setup_test_run_engine()
     RE.ignore_callback_exceptions = False
     fname = tempfile.NamedTemporaryFile().name
     cb = DocumentToSpec(fname)
     dscan = RelativeScan([det], motor, -1, 1, 10)
     RE(dscan, {'all': cb})
-    ascan = Plan([det], motor, -1, 1, 10)
+    ascan = Scan([det], motor, -1, 1, 10)
     RE(ascan, {'all': cb})
     # add count to hit some lines in
     #   suitcase.spec:_get_motor_name
@@ -171,8 +171,6 @@ def test_round_trip_from_run_engine():
     #   suitcase.spec:_get_plan_type
     ct = Count([det])
     RE(ct, {'all': cb})
-
-
 
     sf = Specfile(fname)
     sf1 = _round_trip(sf)
