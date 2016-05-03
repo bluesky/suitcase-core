@@ -702,7 +702,7 @@ _SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{
 
 _SPEC_SCAN_NAMES = ['ascan', 'dscan']
 _NOT_IMPLEMENTED_SCAN = 'Other'
-_BLUESKY_PLAN_NAMES = ['AbsScanPlan', 'DeltaScanPlan']
+_BLUESKY_PLAN_NAMES = ['Scan', 'RelativeScan']
 
 _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 
