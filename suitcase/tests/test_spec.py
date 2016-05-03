@@ -1,5 +1,5 @@
 from __future__ import absolute_import, print_function, division
-from suitcase.spec import Specfile, spec_to_document, DocumentToSpec
+from suitcase.spec import Specfile, spec_to_document, DocumentToSpec, Specscan
 import pytest
 import os
 from metadatastore.commands import (insert_run_start, insert_descriptor,
@@ -30,8 +30,30 @@ def test_spec_parsing(spec_filename):
     assert len(sf) == 34
 
 
-def test_spec_to_document(spec_filename):
+def test_spec_attrs_smoke(spec_filename):
     sf = Specfile(spec_filename)
+    # smoketest Specfile.__str__
+    str(sf)
+    # smoketest Specfile.__getitem__
+    scan = sf[1]
+    # smoketest Specscan.__repr__
+    repr(scan)
+    # smoketest Specscan.__len__
+    len(scan)
+    # smoketest Specscan.__str__
+    str(scan)
+
+
+
+@pytest.mark.xfail(reason='Testing `spec_to_document` with bad input')
+def test_spec_to_document_bad_input():
+    list(spec_to_document(2))
+
+
+@pytest.mark.parametrize("sf", [spec_filename(),
+                                Specfile(spec_filename()),
+                                Specfile(spec_filename())[1]])
+def test_spec_to_document(sf):
     map = {
         'start': insert_run_start,
         'stop': insert_run_stop,
@@ -39,7 +61,7 @@ def test_spec_to_document(spec_filename):
         'event': insert_event
     }
     start_uids = list()
-    for document_name, document in spec_to_document(sf):
+    for document_name, document in spec_to_document(sf, validate=True):
         document = dict(document)
         del document['_name']
         if not isinstance(document_name, str):
@@ -64,7 +86,10 @@ def test_spec_to_document(spec_filename):
     # make sure we are not getting duplicates back out
     hdr_uids = [hdr.start.uid for hdr in hdrs]
     assert len(hdr_uids) == len(set(hdr_uids))
-
+    if isinstance(sf, Specscan):
+        sf = [sf]
+    if isinstance(sf, str):
+        sf = Specfile(sf)
     for hdr, specscan in zip(hdrs, sf):
         for descriptor in hdr.descriptors:
             ev = list(get_events_generator(descriptor))
@@ -131,15 +156,22 @@ def test_round_trip_from_run_engine():
     # generate a new specfile
     from bluesky.tests.utils import setup_test_run_engine
     from bluesky.examples import motor, det
-    from bluesky.plans import DeltaScanPlan, AbsScanPlan, Count, Tweak
+    from bluesky.plans import RelativeScan, Plan, Count
     RE = setup_test_run_engine()
     RE.ignore_callback_exceptions = False
     fname = tempfile.NamedTemporaryFile().name
     cb = DocumentToSpec(fname)
-    dscan = DeltaScanPlan([det], motor, -1, 1, 10)
+    dscan = RelativeScan([det], motor, -1, 1, 10)
     RE(dscan, {'all': cb})
-    ascan = AbsScanPlan([det], motor, -1, 1, 10)
+    ascan = Plan([det], motor, -1, 1, 10)
     RE(ascan, {'all': cb})
+    # add count to hit some lines in
+    #   suitcase.spec:_get_motor_name
+    #   suitcase.spec:_get_motor_position
+    #   suitcase.spec:_get_plan_type
+    ct = Count([det])
+    RE(ct, {'all': cb})
+
 
 
     sf = Specfile(fname)

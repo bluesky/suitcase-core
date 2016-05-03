@@ -493,7 +493,9 @@ def to_run_start(specscan, validate=False, **md):
         'plan_args': specscan.scan_args,
         'motors': [specscan.col_names[0]],
         'plan_type': plan_type,
-        '_name': 'RunStart'
+        '_name': 'RunStart',
+        'group': 'SpecToDocumentConverter',
+        'beamline_id': 'SpecToDocumentConverter',
     }
     run_start_dict.update(**md)
     if validate:
