@@ -2,18 +2,21 @@
 `Reference <https://github.com/certified-spec/specPy/blob/master/doc/specformat.rst>`_
 for the spec file format.
 """
-import numpy as np
-import pandas as pd
 import uuid
 import os
 import warnings
 from datetime import datetime
+import logging
+logger = logging.getLogger(__name__)
+
+import six
+import numpy as np
+import pandas as pd
 import jinja2
 import doct
 import event_model
 import jsonschema
-import logging
-logger = logging.getLogger(__name__)
+
 
 # The way that SPEC time is formatted
 SPEC_TIME_FORMAT = '%a %b %d %H:%M:%S %Y'
@@ -234,12 +237,17 @@ class Specfile:
 
         Parameters
         ----------
-        filename : str
-            The filename of the spec file that this model represents
+        filename : str or file handle
+            The filename of the spec file that this model represents or a file
+            handle to an open file
         """
-        self.filename = os.path.abspath(filename)
-        with open(self.filename, 'r') as f:
-            scan_data = f.read().split('#S')
+        if isinstance(filename, six.string_types):
+            self.filename = os.path.abspath(filename)
+            with open(self.filename, 'r') as f:
+                scan_data = f.read().split('#S')
+        else:
+            self.filename = filename
+            scan_data = self.filename.read().split('#S')
         # reintroduce '#S' to the start of each scan row
         scan_data = [scan_data[0]] + ['#S' + d for d in scan_data[1:]]
         scan_data = [section.split('\n') for section in scan_data]
