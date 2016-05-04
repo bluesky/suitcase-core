@@ -14,14 +14,21 @@ requirements:
   build:
     - python
   run:
-    - python
-    - numpy
     - databroker
+    - doct
+    - event-model
     - h5py
+    - jinja2
+    - metadatastore
+    - numpy
+    - pandas
+    - python
 
 test:
   imports:
     - suitcase
+    - suitcase.spec
+    - suitcase.hdf5
 
 about:
   home: http://scikit-beam.github.io/scikit-beam/

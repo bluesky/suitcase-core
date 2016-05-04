@@ -3,6 +3,13 @@ language: python
 services:
   - mongodb
 
+addons:
+  apt:
+    sources:
+    - mongodb-3.2-precise
+    packages:
+    - mongodb-org-server
+
 cache:
   directories:
     - $HOME/.cache/pip
@@ -27,8 +34,11 @@ before_install:
 install:
   - export GIT_FULL_HASH=`git rev-parse HEAD`
   - conda update conda
-  - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage
+  - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage event-model doct jinja2 pandas
   - source activate testenv
+  - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then
+      conda install bluesky;
+    fi;
   # add the --force flag so that conda >4 doesn't remove the pacakges that
   # depend on metadatastore
   - conda remove metadatastore --force
