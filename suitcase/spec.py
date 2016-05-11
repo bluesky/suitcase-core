@@ -1060,12 +1060,13 @@ class DocumentToSpec(CallbackBase):
         scan_data_line = to_spec_scan_data(self._start,
                                            self._primary_descriptor, doc)
         with open(self.specpath, 'a') as f:
-            f.write(scan_data_line)
+            f.write(scan_data_line + '\n')
 
     def stop(self, doc):
         logger.debug("Received stop document")
+        msg = '\n'
         if doc['exit_status'] != 'success':
-            with open(self.specpath, 'a') as f:
-                f.write('\n')
-                f.write('#C Run exited with status: {exit_status}. Reason: '
-                        '{reason}'.format(**doc))
+            msg += ('#C Run exited with status: {exit_status}. Reason: '
+                    '{reason}'.format(**doc))
+        with open(self.specpath, 'a') as f:
+            f.write(msg)
