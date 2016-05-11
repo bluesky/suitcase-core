@@ -491,7 +491,7 @@ def to_run_start(specscan, validate=False, **md):
                                            specscan.scan_command,
                                            _SPEC_SCAN_NAMES))
         return
-    plan_type = _BLUESKY_PLAN_NAMES[_SPEC_SCAN_NAMES.index(specscan.scan_command)]
+    plan_name = _BLUESKY_PLAN_NAMES[_SPEC_SCAN_NAMES.index(specscan.scan_command)]
     run_start_dict = {
         'time': _get_timestamp(specscan.time_from_date),
         'scan_id': specscan.scan_id,
@@ -500,7 +500,7 @@ def to_run_start(specscan, validate=False, **md):
         'owner': specscan.specfile.parsed_header['user'],
         'plan_args': specscan.scan_args,
         'motors': [specscan.col_names[0]],
-        'plan_type': plan_type,
+        'plan_name': plan_name,
         '_name': 'RunStart',
         'group': 'SpecToDocumentConverter',
         'beamline_id': 'SpecToDocumentConverter',
@@ -739,13 +739,13 @@ def to_spec_file_header(start, filepath, baseline_descriptor=None):
     return _SPEC_FILE_HEADER_TEMPLATE.render(md)
 
 
-_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_type }} {{ scan_motor }} {{ start }} {{ stop }} {{ num }} {{ time }}")
+_SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_name }} {{ scan_motor }} {{ start }} {{ stop }} {{ num }} {{ time }}")
 
 _SCANS_WITHOUT_MOTORS = ['ct']
 _SCANS_WITH_MOTORS = ['ascan', 'dscan']
 _SPEC_SCAN_NAMES = _SCANS_WITH_MOTORS + _SCANS_WITHOUT_MOTORS
 _NOT_IMPLEMENTED_SCAN = 'Other'
-_BLUESKY_PLAN_NAMES = ['Scan', 'RelativeScan', 'Count']
+_BLUESKY_PLAN_NAMES = ['scan', 'relative_scan', 'count']
 
 _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 
@@ -776,21 +776,21 @@ def _get_acq_time(start, default_value=-1):
         return default_value
 
 
-def _get_plan_type(start):
-    plan_type = start['plan_type']
-    if plan_type not in _BLUESKY_PLAN_NAMES:
+def _get_plan_name(start):
+    plan_name = start['plan_name']
+    if plan_name not in _BLUESKY_PLAN_NAMES:
         warnings.warn(
             "Do not know how to represent {} in SPEC. If you would like this "
             "feature, request it at https://github.com/NSLS-II/bluesky/issues. "
             "Until this feature is implemented, we will be using the sequence "
-            "number as the motor position".format(plan_type))
+            "number as the motor position".format(plan_name))
         return _NOT_IMPLEMENTED_SCAN
-    return _SPEC_SCAN_NAMES[_BLUESKY_PLAN_NAMES.index(plan_type)]
+    return _SPEC_SCAN_NAMES[_BLUESKY_PLAN_NAMES.index(plan_name)]
 
 
 def _get_motor_name(start):
-    plan_type = _get_plan_type(start)
-    if plan_type == _NOT_IMPLEMENTED_SCAN or plan_type in _SCANS_WITHOUT_MOTORS:
+    plan_name = _get_plan_name(start)
+    if plan_name == _NOT_IMPLEMENTED_SCAN or plan_name in _SCANS_WITHOUT_MOTORS:
         return 'seq_num'
     motor_name = start['motors']
     # We only support a single scanning motor right now.
@@ -807,9 +807,9 @@ def _get_motor_name(start):
 
 
 def _get_motor_position(start, event):
-    plan_type = _get_plan_type(start)
+    plan_name = _get_plan_name(start)
     # make sure we are trying to get the motor position for an implemented scan
-    if plan_type == _NOT_IMPLEMENTED_SCAN or plan_type in _SCANS_WITHOUT_MOTORS:
+    if plan_name == _NOT_IMPLEMENTED_SCAN or plan_name in _SCANS_WITHOUT_MOTORS:
         return event['seq_num']
     motor_name = _get_motor_name(start)
     # make sure we have a motor name that we can get data for. Otherwise we use
@@ -858,7 +858,7 @@ def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
                 {k: -1 for k in _DEFAULT_POSITIONERS['data_keys']}}
     md = {}
     md['scan_id'] = start['scan_id']
-    scan_command = _get_plan_type(start)
+    scan_command = _get_plan_name(start)
     motor_name = _get_motor_name(start)
     acq_time = _get_acq_time(start)
     # can only grab start/stop/num if we are a dscan or ascan.
