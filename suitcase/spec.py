@@ -512,7 +512,6 @@ def to_run_start(specscan, validate=False, **md):
                                                          run_start_dict)
 
 
-
 def to_baseline(specscan, start_uid, validate=False):
     """Convert a Specscan object into a baseline Descriptor and Event
 
