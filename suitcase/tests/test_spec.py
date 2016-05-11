@@ -120,15 +120,14 @@ def _round_trip(specfile_object, new_specfile_name=None):
         new_specfile_name = tempfile.NamedTemporaryFile().name
 
     document_stream = spec_to_document(specfile_object)
-    fname = tempfile.NamedTemporaryFile().name
-    cb = DocumentToSpec(fname)
+    cb = DocumentToSpec(new_specfile_name)
     for doc_name, doc in document_stream:
         # RunEngine.subscribe does the translation of 'start' <->
         # event_model.DocumentNames.start under the hood. Since we do not have
         # this magic here, we have to do it by hand
         cb(doc_name.name, doc)
 
-    sf1 = Specfile(fname)
+    sf1 = Specfile(new_specfile_name)
 
     return sf1
 
