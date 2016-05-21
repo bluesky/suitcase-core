@@ -745,7 +745,7 @@ _SCANS_WITHOUT_MOTORS = ['ct']
 _SCANS_WITH_MOTORS = ['ascan', 'dscan']
 _SPEC_SCAN_NAMES = _SCANS_WITH_MOTORS + _SCANS_WITHOUT_MOTORS
 _NOT_IMPLEMENTED_SCAN = 'Other'
-_BLUESKY_PLAN_NAMES = ['scan', 'relative_scan', 'count']
+_BLUESKY_PLAN_NAMES = ['dscan', 'ascan', 'ct']
 
 _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 
