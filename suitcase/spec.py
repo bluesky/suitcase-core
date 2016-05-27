@@ -773,7 +773,11 @@ def _get_acq_time(start, default_value=-1):
     default_value : int, optional
         The default acquisition time. Defaults to -1
     """
-    return start.get('count_time', default_value)
+    time = start.get('count_time', default_value)
+    if time is None:
+        # 'None' is not legal in spec
+        time = default_value
+    return time
 
 
 def _get_plan_name(start):
