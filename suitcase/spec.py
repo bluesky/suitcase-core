@@ -759,8 +759,11 @@ _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 
 
 def _get_acq_time(start, default_value=-1):
-    """Private helper function to extract the acquisition time from the Start
-    document
+    """Private helper function to extract the heuristic count time
+
+    The SPEC-style plans inject a heuristic 'count_time' (which has
+    different meanings in different contexts) as a top-level key in the
+    RunStart document.
 
     Parameters
     ----------
@@ -770,10 +773,7 @@ def _get_acq_time(start, default_value=-1):
     default_value : int, optional
         The default acquisition time. Defaults to -1
     """
-    try:
-        return start['plan_args']['time']
-    except KeyError:
-        return default_value
+    return start.get('count_time', default_value)
 
 
 def _get_plan_name(start):
