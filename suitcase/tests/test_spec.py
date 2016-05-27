@@ -120,15 +120,14 @@ def _round_trip(specfile_object, new_specfile_name=None):
         new_specfile_name = tempfile.NamedTemporaryFile().name
 
     document_stream = spec_to_document(specfile_object)
-    fname = tempfile.NamedTemporaryFile().name
-    cb = DocumentToSpec(fname)
+    cb = DocumentToSpec(new_specfile_name)
     for doc_name, doc in document_stream:
         # RunEngine.subscribe does the translation of 'start' <->
         # event_model.DocumentNames.start under the hood. Since we do not have
         # this magic here, we have to do it by hand
         cb(doc_name.name, doc)
 
-    sf1 = Specfile(fname)
+    sf1 = Specfile(new_specfile_name)
 
     return sf1
 
@@ -156,21 +155,21 @@ def test_round_trip_from_run_engine():
     # generate a new specfile
     from bluesky.tests.utils import setup_test_run_engine
     from bluesky.examples import motor, det
-    from bluesky.plans import RelativeScan, Scan, Count
+    from bluesky.global_state import gs
+    from bluesky.spec_api import dscan, ascan, ct
     RE = setup_test_run_engine()
     RE.ignore_callback_exceptions = False
     fname = tempfile.NamedTemporaryFile().name
     cb = DocumentToSpec(fname)
-    dscan = RelativeScan([det], motor, -1, 1, 10)
-    RE(dscan, {'all': cb})
-    ascan = Scan([det], motor, -1, 1, 10)
-    RE(ascan, {'all': cb})
+    RE.subscribe('all', cb)
+    gs.DETS = [det]
+    RE(dscan(motor, -1, 1, 10))
+    RE(ascan(motor, -1, 1, 10))
     # add count to hit some lines in
     #   suitcase.spec:_get_motor_name
     #   suitcase.spec:_get_motor_position
     #   suitcase.spec:_get_plan_type
-    ct = Count([det])
-    RE(ct, {'all': cb})
+    RE(ct())
 
     sf = Specfile(fname)
     sf1 = _round_trip(sf)
