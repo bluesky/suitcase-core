@@ -277,9 +277,7 @@ class Specfile:
     def __eq__(self, obj):
         if not isinstance(obj, type(self)):
             return False
-        return (self.header == obj.header and
-                self.parsed_header == obj.parsed_header and
-                list(self.scans.keys()) == list(obj.scans.keys()))
+        return all([s1 == s2 for s1, s2 in zip(self, obj)])
 
     def __str__(self):
         return """
@@ -325,10 +323,7 @@ class Specscan:
     def __eq__(self, obj):
         if not isinstance(obj, type(self)):
             return False
-        return (self.specfile == obj.specfile and
-                self.raw_scan_data == obj.raw_scan_data and
-                self.md == obj.md and
-                self.scan_data.equals(obj.scan_data))
+        return hash(self) == hash(obj)
 
     def __lt__(self, obj):
         return self.scan_id < obj.scan_id
@@ -340,7 +335,8 @@ class Specscan:
 {} """.format(self.scan_id, self.scan_command + " " + " ".join(self.scan_args),
               len(self), self.time_from_date)
 
-
+    def __hash__(self):
+        return hash('\n'.join(self.raw_scan_data))
 
 ###############################################################################
 # Spec to document code
@@ -504,6 +500,7 @@ def to_run_start(specscan, validate=False, **md):
         '_name': 'RunStart',
         'group': 'SpecToDocumentConverter',
         'beamline_id': 'SpecToDocumentConverter',
+        'hashed_scandata': hash(specscan),
     }
     run_start_dict.update(**md)
     if validate:

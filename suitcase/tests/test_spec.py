@@ -103,8 +103,6 @@ def test_equality(spec_filename):
     sf1 = Specfile(spec_filename)
     sf2 = Specfile(spec_filename)
     assert sf1 == sf2
-    for s1, s2, in zip(sf1, sf2):
-        assert s1 == s2
 
     assert sf1 != 'cat'
     assert sf1[-1] != 'cat'
