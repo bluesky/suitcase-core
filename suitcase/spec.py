@@ -1071,3 +1071,61 @@ class DocumentToSpec(CallbackBase):
                     '{reason}'.format(**doc))
         with open(self.specpath, 'a') as f:
             f.write(msg)
+
+
+# ############################################################################
+# Data broker insertion code. This is some hideous code...
+# ############################################################################
+
+def compare_doc(doc1, doc2):
+    d1 = dict(doc1)
+    d1.pop('uid')
+    d2 = dict(doc2)
+    d2.pop('uid')
+    return d1 == d2
+
+
+def build_tree(document_generator):
+    init_tree = lambda: {'descriptors': [], 'events': {}}
+    tree = {}
+    for doc_name, doc in gen:
+        if doc_name == DocumentNames.start:
+            if tree:
+                yield tree
+            tree = init_tree()
+            tree['start'] = doc
+            continue
+        if doc_name == DocumentNames.stop:
+            tree['stop'] = doc
+        if doc_name == DocumentNames.descriptor:
+            tree['descriptors'].append(doc)
+            tree['events'][doc.uid] = []
+        if doc_name == DocumentNames.event:
+            tree['events'][doc.descriptor] = doc
+
+
+def check_for_start_and_maybe_mutate(tree):
+    # check to see if run start document already exists
+    run_starts = list(find_run_starts(hashed_scandata=tree['start'].hashed_scandata))
+    if run_starts == []:
+        print("Inserting the run start document")
+        insert_run_start(**tree['start'])
+    elif len(run_starts) == 1:
+        print("Already have a run start. Checking if the one in the database "
+              "is the same... {}".format(compare_doc(tree['start'], run_starts[0])))
+        tree['start'] = update_document(tree['start'], 'uid', run_starts[0].uid)
+    #     tree['start'] = run_starts[0]
+        # run start document already exists in metadatastore
+        # need to reset the uid's of the descriptors in the tree
+        new_descriptors = []
+        def update_document(document, key, val):
+            doc_name, doc_dict = document.to_name_dict_pair()
+            doc_dict[key] = val
+            return Document(doc_name, doc_dict)
+        tree['descriptors'] = [update_document(doc, 'run_start', tree['start'].uid)
+                               for doc in tree['descriptors']]
+        tree['stop'] = update_document(tree['stop'], 'run_start', tree['start'].uid)
+    else:
+        raise RuntimeError("More than one run start matches this hashed scandata in the "
+                           "database. Uh-oh. Abandoning attempt to insert this specfile"
+                           "into metadatastore")
