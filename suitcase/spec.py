@@ -2,20 +2,34 @@
 `Reference <https://github.com/certified-spec/specPy/blob/master/doc/specformat.rst>`_
 for the spec file format.
 """
-import uuid
+import copy
+import logging
 import os
+import uuid
 import warnings
 from datetime import datetime
-import logging
-logger = logging.getLogger(__name__)
 
-import six
-import numpy as np
-import pandas as pd
-import jinja2
 import doct
 import event_model
+import jinja2
 import jsonschema
+import numpy as np
+import pandas as pd
+import six
+
+try:
+    from functools import singledispatch
+except ImportError:
+    # might be that we're on python 2
+    import singledispatch
+
+logger = logging.getLogger(__name__)
+
+try:
+    import metadatastore.commands as mdsc
+except ImportError:
+    logger.error("metadatastore not available. Some functionality is disabled")
+    mdsc = None
 
 
 # The way that SPEC time is formatted
@@ -398,26 +412,50 @@ def spec_to_document(specfile, scan_ids=None, validate=False):
             yield document_name, document
 
 
-def specscan_to_document_stream(scan, validate=False):
+def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
+    """
+    Turn a single spec scan into a document stream
+
+    Parameters
+    ----------
+    scan : Specscan
+    validate : bool
+        True/False: Do/Don't validate the documents against their json schema
+                    as defined in `event_model`
+    check_in_broker : bool
+        True/False: Do/Don't check to see if the documents already exist in
+                    metadatastore
+
+    Yields
+    -------
+    document_name : {event_model.DocumentNames}
+        One of the values of the `DocumentNames` enum
+    document_dict : doct.Document
+        A document that is identical to one that would come from the
+        metadatastore find_* functions. It may or may not already exist in
+        metadatastore.  You will need to call find_* yourself to determine
+        if it does exist
+    """
     # do the conversion!
-    document_name, document = next(to_run_start(scan, validate=validate))
+    document_name, document = next(to_run_start(
+        scan, validate=validate, check_in_broker=check_in_broker))
     start_uid = document['uid']
     # yield the start document
     yield document_name, document
     # yield the baseline descriptor and its event
-    for document_name, document in to_baseline(scan, start_uid,
-                                               validate=validate):
+    for document_name, document in to_baseline(
+            scan, start_uid, validate=validate,
+            check_in_broker=check_in_broker):
         yield document_name, document
-    num_events = 0
-    for document_name, document in to_events(scan, start_uid,
-                                             validate=validate):
-        if document_name == 'event':
-            num_events += 1
+    for document_name, document in to_events(
+            scan, start_uid, validate=validate,
+            check_in_broker=check_in_broker):
         # yield the descriptor and events
         yield document_name, document
     # make sure the run was finished before it was stopped
     # yield the stop document
-    gen = to_stop(scan, start_uid, validate=validate)
+    gen = to_stop(scan, start_uid, validate=validate,
+                  check_in_broker=check_in_broker)
     document_name, document = next(gen)
     yield document_name, document
 
@@ -458,7 +496,83 @@ def _get_timestamp(dt):
         return (dt - datetime(1970, 1, 1)).total_seconds()
 
 
-def to_run_start(specscan, validate=False, **md):
+_find_map = {
+    event_model.DocumentNames.start: "find_run_starts",
+    event_model.DocumentNames.stop: "find_run_stops",
+    event_model.DocumentNames.descriptor: "find_descriptors",
+    event_model.DocumentNames.event: "find_events",
+}
+
+
+def _check_and_update_document(doc_name, doc_dict):
+    """
+    Check to see if the document already exists in metadatastore and
+
+    Parameters
+    ----------
+    doc_name : {event_model.DocumentNames}
+        One of the values in the event_model.DocumentNames enum
+    doc_dict : dict
+        The dictionary that corresponds to a document
+
+    Returns
+    -------
+    dict
+        A dictionary that contains all the keys that a document that came out
+        of bluesky or metadatastore would contain.
+    """
+    find_func = getattr(mdsc, _find_map[doc_name])
+    if doc_name == event_model.DocumentNames.start:
+        find_kwargs = {'hashed_scandata': doc_dict['hashed_scandata']}
+    elif (doc_name == event_model.DocumentNames.descriptor or
+          doc_name == event_model.DocumentNames.stop):
+        find_kwargs = {'hashed_scandata': doc_dict['hashed_scandata'],
+                       'run_start': doc_dict['run_start']}
+    elif doc_name == event_model.DocumentNames.event:
+        # need to special case the event because we can't add any extra keys
+        # into the event document
+        find_kwargs = {'descriptor': doc_dict['descriptor'],
+                       'seq_num': doc_dict['seq_num']}
+    # do the actual search for the documents
+    documents = list(find_func(**find_kwargs))
+    # handle the case when the document does not exist in metadatastore
+    if not documents:
+        logger.debug('%s document does not exist in mds', doc_name)
+        return doc_dict
+    # handle the (hopefully never) case when there are more than one documents
+    # that match the query
+    elif len(documents) > 1:
+        raise ValueError('There were {} documents found for the search with '
+                         'kwargs={}'.format(len(documents), find_kwargs))
+    mds_doc, = documents
+
+    # there is only one document that was returned. Make sure it matches the
+    # one we think it should
+    common_items = ['uid', 'time']
+    keys_that_might_differ = {
+        event_model.DocumentNames.start: common_items,
+        event_model.DocumentNames.descriptor: common_items + ['run_start'],
+        event_model.DocumentNames.event: common_items + ['descriptor'],
+        event_model.DocumentNames.stop: common_items + ['run_start'],
+    }
+
+    d1 = {k: v for k, v in doc_dict.items()
+          if k not in keys_that_might_differ[doc_name]}
+    d2 = {k: v for k, v in mds_doc.items()
+          if k not in keys_that_might_differ[doc_name]}
+
+    assert d1 == d2
+    doc_copy = copy.deepcopy(doc_dict)
+    for k in keys_that_might_differ[doc_name]:
+        doc_copy.update({k: mds_doc.get(k, doc_dict[k])})
+
+
+    logger.debug("%s document already exists in mds. Returning the document "
+                 "from metadatastore instead")
+    return doc_copy
+
+
+def to_run_start(specscan, validate=False, check_in_broker=False, **md):
     """Convert a Specscan object into a RunStart document
 
     Parameters
@@ -497,7 +611,6 @@ def to_run_start(specscan, validate=False, **md):
         'plan_args': specscan.scan_args,
         'motors': [specscan.col_names[0]],
         'plan_name': plan_name,
-        '_name': 'RunStart',
         'group': 'SpecToDocumentConverter',
         'beamline_id': 'SpecToDocumentConverter',
         'hashed_scandata': hash(specscan),
@@ -505,11 +618,14 @@ def to_run_start(specscan, validate=False, **md):
     run_start_dict.update(**md)
     if validate:
         _validate(event_model.DocumentNames.start, run_start_dict)
+    if check_in_broker:
+        run_start_dict = _check_and_update_document(
+            event_model.DocumentNames.start, run_start_dict)
     yield event_model.DocumentNames.start, doct.Document('RunStart',
                                                          run_start_dict)
 
 
-def to_baseline(specscan, start_uid, validate=False):
+def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
     """Convert a Specscan object into a baseline Descriptor and Event
 
     Parameters
@@ -548,7 +664,7 @@ def to_baseline(specscan, start_uid, validate=False):
         data[obj_name] = value
         timestamps[obj_name] = timestamp
     try:
-        hkl = specscan.hkl
+        specscan.hkl
     except AttributeError:
         warnings.warn("scan {0} does not have hkl values"
                       "".format(specscan.scan_id))
@@ -563,19 +679,29 @@ def to_baseline(specscan, start_uid, validate=False):
         timestamps.update({k: timestamp for k in 'hkl'})
     descriptor = dict(run_start=start_uid, data_keys=data_keys,
                       time=timestamp, uid=str(uuid.uuid4()),
-                      name='baseline')
+                      name='baseline',
+                      hashed_scandata=hash(str(
+                          specscan.specfile.parsed_header['motor_spec_names'] +
+                          specscan.specfile.parsed_header['motor_human_names']
+                      )))
     if validate:
         _validate(event_model.DocumentNames.descriptor, descriptor)
+    if check_in_broker:
+        descriptor = _check_and_update_document(
+            event_model.DocumentNames.descriptor, descriptor)
     yield (event_model.DocumentNames.descriptor,
            doct.Document('EventDescriptor', descriptor))
     event = dict(descriptor=descriptor['uid'], seq_num=0, time=timestamp,
                  data=data, timestamps=timestamps, uid=str(uuid.uuid4()))
     if validate:
         _validate(event_model.DocumentNames.event, event)
+    if check_in_broker:
+        event = _check_and_update_document(
+            event_model.DocumentNames.event, event)
     yield event_model.DocumentNames.event, doct.Document('Event', event)
 
 
-def to_events(specscan, start_uid, validate=False):
+def to_events(specscan, start_uid, validate=False, check_in_broker=False):
     """Convert a Specscan object into a Descriptor and Event documents
 
     Parameters
@@ -606,9 +732,13 @@ def to_events(specscan, start_uid, validate=False):
                        'units': 'N/A'}
                  for col in specscan.col_names}
     descriptor = dict(run_start=start_uid, data_keys=data_keys,
-                      time=timestamp, uid=str(uuid.uuid4()))
+                      time=timestamp, uid=str(uuid.uuid4()),
+                      hashed_scandata=hash(str(specscan.col_names)))
     if validate:
         _validate(event_model.DocumentNames.descriptor, descriptor)
+    if check_in_broker:
+        descriptor = _check_and_update_document(
+            event_model.DocumentNames.descriptor, descriptor)
     yield (event_model.DocumentNames.descriptor,
            doct.Document('EventDescriptor', descriptor))
     timestamps = {col: timestamp for col in specscan.col_names}
@@ -619,11 +749,14 @@ def to_events(specscan, start_uid, validate=False):
                      timestamps=timestamps, uid=str(uuid.uuid4()))
         if validate:
             _validate(event_model.DocumentNames.descriptor, descriptor)
+        if check_in_broker:
+            event = _check_and_update_document(
+                event_model.DocumentNames.event, event)
         yield event_model.DocumentNames.event, doct.Document('Event',
                                                              event)
 
 
-def to_stop(specscan, start_uid, validate=False, **md):
+def to_stop(specscan, start_uid, validate=False, check_in_broker=False, **md):
     """Convert a Specscan object into a Stop document
 
     Parameters
@@ -669,10 +802,13 @@ def to_stop(specscan, start_uid, validate=False, **md):
                                                  expected_events,
                                                  start_uid))
     timestamp = _get_timestamp(specscan.time_from_date)
+    md['hashed_scandata'] = hash(specscan)
     stop = dict(run_start=start_uid, time=timestamp, uid=str(uuid.uuid4()),
                 **md)
     if validate:
         _validate(event_model.DocumentNames.stop, stop)
+    if check_in_broker:
+        stop = _check_and_update_document(event_model.DocumentNames.stop, stop)
     yield event_model.DocumentNames.stop, doct.Document('RunStop', stop)
 
 
@@ -926,7 +1062,7 @@ class DocumentToSpec(CallbackBase):
     """Callback to export scalar values to a spec file for viewing
 
     Expect:
-        `
+
     1. a descriptor named 'baseline'
     2. an event for that descriptor
     3. one primary descriptor
@@ -1073,59 +1209,58 @@ class DocumentToSpec(CallbackBase):
             f.write(msg)
 
 
-# ############################################################################
-# Data broker insertion code. This is some hideous code...
-# ############################################################################
-
-def compare_doc(doc1, doc2):
-    d1 = dict(doc1)
-    d1.pop('uid')
-    d2 = dict(doc2)
-    d2.pop('uid')
-    return d1 == d2
+_insert_map = {
+    event_model.DocumentNames.start: "insert_run_start",
+    event_model.DocumentNames.stop: "insert_run_stop",
+    event_model.DocumentNames.descriptor: "insert_descriptor",
+    event_model.DocumentNames.event: "insert_event",
+}
 
 
-def build_tree(document_generator):
-    init_tree = lambda: {'descriptors': [], 'events': {}}
-    tree = {}
-    for doc_name, doc in gen:
-        if doc_name == DocumentNames.start:
-            if tree:
-                yield tree
-            tree = init_tree()
-            tree['start'] = doc
-            continue
-        if doc_name == DocumentNames.stop:
-            tree['stop'] = doc
-        if doc_name == DocumentNames.descriptor:
-            tree['descriptors'].append(doc)
-            tree['events'][doc.uid] = []
-        if doc_name == DocumentNames.event:
-            tree['events'][doc.descriptor] = doc
+
+@singledispatch
+def insert_into_broker(specscan, validate=False, check_in_broker=True):
+    """
+    Insert a single spec scan into the databroker
+
+    Parameters
+    ----------
+    specscan : Specscan
+        The Specscan object to insert into the databroker
+    validate : bool
+        True/False: Do/Don't validate the document dict against the json
+                    schema defined in event_model
+    check_in_broker : bool
+        True/False: Do/Don't check to see if the document already exists in
+        metadatastore.  If it does, the document will be replaced with the one
+        that is already in metadatastore
+    """
+    if mdsc is None:
+        raise RuntimeError("metadatastore is not available. This function is "
+                           "not usable.")
+    doc_gen = specscan_to_document_stream(specscan, validate=validate,
+                                          check_in_broker=check_in_broker)
+    for doc_name, doc in doc_gen:
+        # insert the document
+        find_func = getattr(mdsc, _find_map[doc_name])
+        documents = list(find_func(uid=doc.uid))
+        if len(documents) > 1:
+            raise ValueError("There are {} documents of type {} with the "
+                             "same uid.".format(len(documents), doc_name))
+        if not documents:
+            # insert the document
+            print("inserting {} with uid={}".format(doc_name, doc.uid))
+            getattr(mdsc, _insert_map[doc_name])(**doc)
+        elif len(documents) == 1:
+            logger.debug("{} with uid: {} already exists in mds".format(
+                doc_name, doc.uid))
 
 
-def check_for_start_and_maybe_mutate(tree):
-    # check to see if run start document already exists
-    run_starts = list(find_run_starts(hashed_scandata=tree['start'].hashed_scandata))
-    if run_starts == []:
-        print("Inserting the run start document")
-        insert_run_start(**tree['start'])
-    elif len(run_starts) == 1:
-        print("Already have a run start. Checking if the one in the database "
-              "is the same... {}".format(compare_doc(tree['start'], run_starts[0])))
-        tree['start'] = update_document(tree['start'], 'uid', run_starts[0].uid)
-    #     tree['start'] = run_starts[0]
-        # run start document already exists in metadatastore
-        # need to reset the uid's of the descriptors in the tree
-        new_descriptors = []
-        def update_document(document, key, val):
-            doc_name, doc_dict = document.to_name_dict_pair()
-            doc_dict[key] = val
-            return Document(doc_name, doc_dict)
-        tree['descriptors'] = [update_document(doc, 'run_start', tree['start'].uid)
-                               for doc in tree['descriptors']]
-        tree['stop'] = update_document(tree['stop'], 'run_start', tree['start'].uid)
-    else:
-        raise RuntimeError("More than one run start matches this hashed scandata in the "
-                           "database. Uh-oh. Abandoning attempt to insert this specfile"
-                           "into metadatastore")
+@insert_into_broker.register(Specfile)
+def _(specscan, validate=False, check_in_broker=True):
+    """
+    Iterate over the scans in the specfile
+    """
+    for scan in specscan:
+        insert_into_broker(scan, validate=validate,
+                           check_in_broker=check_in_broker)

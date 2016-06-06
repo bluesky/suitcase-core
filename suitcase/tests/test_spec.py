@@ -1,7 +1,10 @@
 from __future__ import absolute_import, print_function, division
-from suitcase.spec import Specfile, spec_to_document, DocumentToSpec, Specscan
-import pytest
+
 import os
+import tempfile
+
+import event_model
+import pytest
 from metadatastore.commands import (insert_run_start, insert_descriptor,
                                     insert_event, insert_run_stop,
                                     get_events_generator)
@@ -9,8 +12,16 @@ from metadatastore.test.utils import mds_setup, mds_teardown
 
 from databroker import db
 from databroker.core import Header
-import tempfile
-
+from suitcase.spec import (Specfile, spec_to_document, DocumentToSpec,
+                           Specscan, to_run_start, to_baseline,
+                           specscan_to_document_stream, insert_into_broker)
+import itertools
+from suitcase.spec import logger
+import logging
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(stream_handler)
 
 def setup_function(function):
     mds_setup()
@@ -50,10 +61,14 @@ def test_spec_to_document_bad_input():
     list(spec_to_document(2))
 
 
-@pytest.mark.parametrize("sf", [spec_filename(),
-                                Specfile(spec_filename()),
-                                Specfile(spec_filename())[1]])
-def test_spec_to_document(sf):
+@pytest.mark.parametrize(
+    "sf, scan_ids",
+    itertools.product(
+        [spec_filename(),
+         Specfile(spec_filename()),
+         Specfile(spec_filename())[1]],
+        [1, [1, 2], None]))
+def test_spec_to_document(sf, scan_ids):
     map = {
         'start': insert_run_start,
         'stop': insert_run_stop,
@@ -61,7 +76,9 @@ def test_spec_to_document(sf):
         'event': insert_event
     }
     start_uids = list()
-    for document_name, document in spec_to_document(sf, validate=True):
+    for document_name, document in spec_to_document(sf,
+                                                    scan_ids=scan_ids,
+                                                    validate=True):
         document = dict(document)
         del document['_name']
         if not isinstance(document_name, str):
@@ -152,9 +169,9 @@ def test_round_trip_from_run_engine():
         raise pytest.skip('ImportError: {0}'.format(ie))
     # generate a new specfile
     from bluesky.tests.utils import setup_test_run_engine
-    from bluesky.examples import motor, det
+    from bluesky.examples import motor, det, motor1, det1
     from bluesky.global_state import gs
-    from bluesky.spec_api import dscan, ascan, ct
+    from bluesky.spec_api import dscan, ascan, ct, a2scan
     RE = setup_test_run_engine()
     RE.ignore_callback_exceptions = False
     fname = tempfile.NamedTemporaryFile().name
@@ -169,7 +186,62 @@ def test_round_trip_from_run_engine():
     #   suitcase.spec:_get_plan_type
     RE(ct())
 
+    RE(a2scan(motor, -1, 1, motor1, -1, 1, 10))
+
     sf = Specfile(fname)
     sf1 = _round_trip(sf)
 
-    assert len(sf) == len(sf1)
+    # a2scan is not round trippable
+    num_unconvertable_scans = 1
+
+    assert len(sf) == (len(sf1) + num_unconvertable_scans)
+
+
+def _insert_helper(specscan):
+    doc_gen = specscan_to_document_stream(specscan, validate=True)
+
+    for doc_name, doc in doc_gen:
+        if doc_name == event_model.DocumentNames.start:
+            print('inserting {}'.format(doc_name))
+            insert_run_start(**doc)
+        elif doc_name == event_model.DocumentNames.descriptor:
+            print('inserting {}'.format(doc_name))
+            insert_descriptor(**doc)
+        elif doc_name == event_model.DocumentNames.event:
+            print('inserting {}'.format(doc_name))
+            # can't send in the _name attribute
+            ev_doc = dict(doc)
+            del ev_doc['_name']
+            insert_event(**ev_doc)
+        elif doc_name == event_model.DocumentNames.stop:
+            print('inserting {}'.format(doc_name))
+            insert_run_stop(**doc)
+
+
+@pytest.mark.parametrize('specdata',
+                         [[Specfile(spec_filename())[1]],
+                          Specfile(spec_filename())])
+def test_insert_document_stream(specdata):
+    from suitcase.spec import _find_map
+    import metadatastore.commands as mdsc
+
+    for scan in specdata:
+        # make sure that none of these documents exists in metadatastore
+        for doc_name, doc in specscan_to_document_stream(scan, validate=False):
+            assert not list(getattr(mdsc, _find_map[doc_name])(uid=doc.uid))
+
+        # now insert these documents into the databroker
+        insert_into_broker(scan)
+
+        # then make sure that all of them made it in
+        for checked, unchecked in zip(
+                specscan_to_document_stream(scan, check_in_broker=True),
+                specscan_to_document_stream(scan, check_in_broker=False)):
+            assert checked[1].uid != unchecked[1].uid
+
+#
+# def test_double_insert_document_stream(spec_filename):
+#     sf = Specfile(spec_filename)
+#     scan = next(iter(sf))
+#     insert_into_broker(scan)
+#     insert_into_broker(scan)
