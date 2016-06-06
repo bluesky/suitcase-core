@@ -20,7 +20,7 @@ import six
 try:
     from functools import singledispatch
 except ImportError:
-    # LPy... (╯°□°）╯︵ ┻━┻
+    # LPy...
     from singledispatch import singledispatch
 
 logger = logging.getLogger(__name__)
