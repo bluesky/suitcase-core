@@ -32,15 +32,14 @@ fname = '/path/to/output/data'
 hdf.export(hdrs, fname)
 ```
 
-
 ## Inserting data in the spec format into the databroker
 
 This functionality is provided so that data that has been collected with spec
-can be inserted into the databroker stack which allows the analysis tools
-that are being written at NSLS-II to be used with this sort of "legacy" data.
-This also has the advantage that "legacy" data can be analyzed along side data.
-Note that there are a number of checks to make sure that you do not add data
-more than one time.
+can be inserted into the databroker stack which allows the analysis tools that
+are being written at NSLS-II to be used with this sort of "legacy" data. This
+also has the advantage that "legacy" data can be analyzed along side data that
+was collected with bluesky. Note that there are a number of checks to make sure
+that you do not add data more than one time.
 
 
 ```python
