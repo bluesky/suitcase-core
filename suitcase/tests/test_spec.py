@@ -1,5 +1,7 @@
 from __future__ import absolute_import, print_function, division
 
+import itertools
+import logging
 import os
 import tempfile
 
@@ -13,11 +15,8 @@ from metadatastore.test.utils import mds_setup, mds_teardown
 from databroker import db
 from databroker.core import Header
 from suitcase.spec import (Specfile, spec_to_document, DocumentToSpec,
-                           Specscan, to_run_start, to_baseline,
-                           specscan_to_document_stream, insert_into_broker)
-import itertools
-from suitcase.spec import logger
-import logging
+                           Specscan, specscan_to_document_stream,
+                           insert_into_broker, logger)
 stream_handler = logging.StreamHandler()
 stream_handler.setLevel(logging.DEBUG)
 logger.setLevel(logging.DEBUG)
@@ -169,7 +168,7 @@ def test_round_trip_from_run_engine():
         raise pytest.skip('ImportError: {0}'.format(ie))
     # generate a new specfile
     from bluesky.tests.utils import setup_test_run_engine
-    from bluesky.examples import motor, det, motor1, det1
+    from bluesky.examples import motor, det, motor1
     from bluesky.global_state import gs
     from bluesky.spec_api import dscan, ascan, ct, a2scan
     RE = setup_test_run_engine()

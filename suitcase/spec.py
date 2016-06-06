@@ -20,8 +20,8 @@ import six
 try:
     from functools import singledispatch
 except ImportError:
-    # might be that we're on python 2
-    import singledispatch
+    # LPy... (╯°□°）╯︵ ┻━┻
+    from singledispatch import singledispatch
 
 logger = logging.getLogger(__name__)
 
@@ -1250,7 +1250,10 @@ def insert_into_broker(specscan, validate=False, check_in_broker=True):
         if not documents:
             # insert the document
             print("inserting {} with uid={}".format(doc_name, doc.uid))
-            getattr(mdsc, _insert_map[doc_name])(**doc)
+            # metadatastore does not know how to handle the _name
+            doc_dict = dict(doc)
+            doc_dict.pop('_name', None)
+            getattr(mdsc, _insert_map[doc_name])(**doc_dict)
         elif len(documents) == 1:
             logger.debug("{} with uid: {} already exists in mds".format(
                 doc_name, doc.uid))
