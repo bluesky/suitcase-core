@@ -40,6 +40,8 @@ install:
   - source activate testenv
   - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then
       conda install bluesky;
+    else
+      pip install singledispatch;
     fi;
   # add the --force flag so that conda >4 doesn't remove the pacakges that
   # depend on metadatastore
