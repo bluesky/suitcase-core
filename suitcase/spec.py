@@ -1253,8 +1253,8 @@ class DocumentToSpec(CallbackBase):
 # ##########################################################################
 # Code for inserting documents into metadatastore
 # ##########################################################################
-@singledispatch
-def insert_into_broker(specscan, validate=False, check_in_broker=True):
+def insert_specscan_into_broker(specscan, validate=False,
+                                check_in_broker=True):
     """
     Insert a single spec scan into the databroker
 
@@ -1269,17 +1269,6 @@ def insert_into_broker(specscan, validate=False, check_in_broker=True):
         True/False: Do/Don't check to see if the document already exists in
                     metadatastore.  If it does, the document will be replaced
                     with the one that is already in metadatastore
-    """
-    raise NotImplementedError(
-        "insert_into_broker is not implemented for arguments of type: {}. "
-        "Please request this issue at https://github.com/NSLS-II/suitcase."
-        "".format(type(specscan))
-    )
-
-@insert_into_broker.register(Specscan)
-def _(specscan, validate=False, check_in_broker=True):
-    """
-    Handle the case where type(specscan) == Specscan
     """
     if mdsc is None:
         raise RuntimeError("metadatastore is not available. This function is "
@@ -1305,11 +1294,36 @@ def _(specscan, validate=False, check_in_broker=True):
                 doc_name, doc.uid))
 
 
-@insert_into_broker.register(Specfile)
-def _(specscan, validate=False, check_in_broker=True):
+def insert_specfile_into_broker(specfile, validate=False,
+                                check_in_broker=True):
+
     """
-    Handle the case where type(specscan) == Specfile
+    Insert a single spec scan into the databroker
+
+    Parameters
+    ----------
+    specfile : Specfile
+        The Specfile object to insert into the databroker
+    validate : bool
+        True/False: Do/Don't validate the document dict against the json
+                    schema defined in event_model
+    check_in_broker : bool
+        True/False: Do/Don't check to see if the document already exists in
+                    metadatastore.  If it does, the document will be replaced
+                    with the one that is already in metadatastore
+
+    Returns
+    -------
+    failed_insertions : list
+        List of tuples of the scan object and the error that was raised for
+        any scans that failed to insert
     """
-    for scan in specscan:
-        insert_into_broker(scan, validate=validate,
-                           check_in_broker=check_in_broker)
+    failed_insertions = []
+    for scan in specfile:
+        try:
+            insert_specscan_into_broker(scan, validate=validate,
+                                        check_in_broker=check_in_broker)
+        except NotImplementedError as e:
+            failed_insertions.append((scan, e))
+
+    return failed_insertions
