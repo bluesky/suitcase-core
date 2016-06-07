@@ -21,6 +21,7 @@ stream_handler.setLevel(logging.DEBUG)
 spec.logger.setLevel(logging.DEBUG)
 spec.logger.addHandler(stream_handler)
 
+
 def setup_function(function):
     mds_setup()
 
@@ -74,9 +75,8 @@ def test_spec_to_document(sf, scan_ids):
         'event': insert_event
     }
     start_uids = list()
-    for document_name, document in spec.spec_to_document(sf,
-                                                         scan_ids=scan_ids,
-                                                         validate=True):
+    for document_name, document in spec.spec_to_document(
+            sf, scan_ids=scan_ids, validate=True):
         document = dict(document)
         del document['_name']
         if not isinstance(document_name, str):
@@ -208,9 +208,17 @@ def test_insert_specfile(spec_filename):
     # list
     scans_expected_to_fail = [scan for scan in specfile if scan.scan_command
                               not in spec._BLUESKY_PLAN_NAMES]
-    fail_tuple = spec.insert_specfile_into_broker(specfile)
+    suceeded, failed = spec.insert_specfile_into_broker(specfile)
+    assert len(scans_expected_to_fail) == len(failed)
 
-    assert len(scans_expected_to_fail) == len(fail_tuple)
+
+def test_double_insert_specscan(spec_filename):
+    specfile = spec.Specfile(spec_filename)
+    scan = list(specfile)[1]
+    uids = spec.insert_specscan_into_broker(scan)
+    assert sum([uid[2] for uid in uids]) == len(uids)
+    uids = spec.insert_specscan_into_broker(scan)
+    assert sum([uid[2] for uid in uids]) == 0
 
 
 @pytest.mark.xfail(reason='Testing `insert_into_broker` with bad input')

@@ -7,6 +7,7 @@ import logging
 import os
 import uuid
 import warnings
+from collections import namedtuple
 from datetime import datetime
 
 import doct
@@ -1247,6 +1248,7 @@ class DocumentToSpec(CallbackBase):
 # ##########################################################################
 # Code for inserting documents into metadatastore
 # ##########################################################################
+_inserted = namedtuple('inserted', ['doc_name', 'uid', 'inserted'])
 def insert_specscan_into_broker(specscan, validate=False,
                                 check_in_broker=True):
     """
@@ -1263,19 +1265,24 @@ def insert_specscan_into_broker(specscan, validate=False,
         True/False: Do/Don't check to see if the document already exists in
                     metadatastore.  If it does, the document will be replaced
                     with the one that is already in metadatastore
+
+    Returns
+    -------
+    list
+        List of `_inserted` namedtuples that provide some information regarding
+        which documents were inserted and which already existed.
     """
     if mdsc is None:
         raise RuntimeError("metadatastore is not available. This function is "
                            "not usable.")
     doc_gen = specscan_to_document_stream(specscan, validate=validate,
                                           check_in_broker=check_in_broker)
+    uids = []
     for doc_name, doc in doc_gen:
         # insert the document
         find_func = getattr(mdsc, _find_map[doc_name])
         documents = list(find_func(uid=doc.uid))
-        if len(documents) > 1:
-            raise ValueError("There are {} documents of type {} with the "
-                             "same uid.".format(len(documents), doc_name))
+        inserted = False
         if not documents:
             # insert the document
             print("inserting {} with uid={}".format(doc_name, doc.uid))
@@ -1283,9 +1290,14 @@ def insert_specscan_into_broker(specscan, validate=False,
             doc_dict = dict(doc)
             doc_dict.pop('_name', None)
             mdsc.insert(doc_name.name, doc_dict)
-        elif len(documents) == 1:
+            inserted = True
+        else:
+            # there is only one document.  It is not possible for mds to return
+            # more than one document with the same uid
             logger.debug("{} with uid: {} already exists in mds".format(
                 doc_name, doc.uid))
+        uids.append(_inserted(doc_name, doc.uid, inserted))
+    return uids
 
 
 def insert_specfile_into_broker(specfile, validate=False,
@@ -1308,16 +1320,23 @@ def insert_specfile_into_broker(specfile, validate=False,
 
     Returns
     -------
-    failed_insertions : list
+    suceeded : list
+        List of tuples of the scan object and a list of ``_inserted`` namedtuples
+        that contain the document name, the document uid and whether or not
+        the insertion was successful for every document that was inserted into
+        metadatastore
+    failed : list
         List of tuples of the scan object and the error that was raised for
         any scans that failed to insert
     """
-    failed_insertions = []
+    suceeded = []
+    failed = []
     for scan in specfile:
         try:
-            insert_specscan_into_broker(scan, validate=validate,
-                                        check_in_broker=check_in_broker)
+            uids = insert_specscan_into_broker(scan, validate=validate,
+                                               check_in_broker=check_in_broker)
+            suceeded.append((scan, uids))
         except NotImplementedError as e:
-            failed_insertions.append((scan, e))
+            failed.append((scan, e))
 
-    return failed_insertions
+    return suceeded, failed
