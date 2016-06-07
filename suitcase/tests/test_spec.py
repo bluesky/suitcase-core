@@ -217,9 +217,10 @@ def _insert_helper(specscan):
             insert_run_stop(**doc)
 
 
-@pytest.mark.parametrize('specdata',
-                         [[Specfile(spec_filename())[1]],
-                          Specfile(spec_filename())])
+@pytest.mark.parametrize(
+    'specdata',
+    [[Specfile(spec_filename())[1]],  # Send in one specscan
+      Specfile(spec_filename())])  # Send in a whole specfile
 def test_insert_document_stream(specdata):
     from suitcase.spec import _find_map
     import metadatastore.commands as mdsc
