@@ -213,7 +213,7 @@ def parse_spec_scan(raw_scan_data):
     return md, scan_data
 
 
-class Specfile:
+class Specfile(object):
     """Object model for a spec file.
 
     Slicing works on the scan number.
@@ -255,6 +255,7 @@ class Specfile:
             The filename of the spec file that this model represents or a file
             handle to an open file
         """
+        super(Specfile, self).__init__()
         if isinstance(filename, six.string_types):
             self.filename = os.path.abspath(filename)
             with open(self.filename, 'r') as f:
@@ -302,7 +303,7 @@ user: {3}""".format(self.filename, self.parsed_header['time'], len(self),
                     self.parsed_header['user'])
 
 
-class Specscan:
+class Specscan(object):
     """Object that contains data from a single spec scan.
 
     A scan corresponds to one invocation of a spec command
@@ -322,6 +323,7 @@ class Specscan:
         in the spec file.  Rows are indexed starting at 0
     """
     def __init__(self, specfile, raw_scan_data):
+        super(Specscan, self).__init__()
         self.specfile = specfile
         self.raw_scan_data = raw_scan_data
         self.md, self.scan_data = parse_spec_scan(self.raw_scan_data)
