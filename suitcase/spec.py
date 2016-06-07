@@ -358,7 +358,9 @@ class Specscan(object):
 # Spec to document code
 ###############################################################################
 
-def spec_to_document(specfile, scan_ids=None, validate=False):
+@singledispatch
+def spec_to_document(specfile, scan_ids=None, validate=False,
+                     check_in_broker=False):
     """Convert one or more scans in a specfile into documents
 
     Parameters
@@ -370,6 +372,12 @@ def spec_to_document(specfile, scan_ids=None, validate=False):
     validate : bool, optional
         Whether or not to use jsonschema validation on the documents that are
         being created. Defaults to False
+    check_in_broker : bool, optional
+        Defaults to False.
+        True/False: Do/Don't check in in metadatstore for the presence of
+                    these documents. If a document exists in metadatastore,
+                    replace the generated document with the one already in
+                    metadatastore.
 
     Yields
     ------
@@ -387,32 +395,57 @@ def spec_to_document(specfile, scan_ids=None, validate=False):
     If multiple scan_ids are requested, then documents will be emitted in the
     order listed above until all scan_ids have been processed
     """
-    if isinstance(specfile, str):
-        specfile = Specfile(filename=specfile)
-    if isinstance(specfile, Specfile):
-        # grab the scans that we want to convert
-        if scan_ids is None:
-            scans_to_process = specfile
-        else:
-            try:
-                scan_ids[0]
-            except TypeError:
-                scan_ids = [scan_ids]
-            finally:
-                scans_to_process = [specfile[sid] for sid in scan_ids]
-    elif isinstance(specfile, Specscan):
-        scans_to_process = [specfile]
+    raise ValueError("Variable `specfile` is of type {0}. We only support"
+                     "strings, suitcase.spec.Specfile or "
+                     "suitcase.spec.Specscan objects here."
+                     "".format(specfile))
+
+
+@spec_to_document.register(str)
+def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+    """
+    Handle the case when type(specfile) == str
+    """
+    specfile = Specfile(filename=specfile)
+    for document_name, document in spec_to_document(
+            specfile, scan_ids=scan_ids, validate=validate,
+            check_in_broker=check_in_broker):
+      yield document_name, document
+
+
+@spec_to_document.register(Specfile)
+def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+    """
+    Handle the case when type(specfile) == Specfile
+    """
+    # grab the scans that we want to convert
+    if scan_ids is None:
+        scans_to_process = specfile
     else:
-        raise ValueError("Variable `specfile` is of type {0}. We only support"
-                         "strings, suitcase.spec.Specfile or "
-                         "suitcase.spec.Specscan objects here."
-                         "".format(specfile))
-
+        try:
+            scan_ids[0]
+        except TypeError:
+            scan_ids = [scan_ids]
+        finally:
+            scans_to_process = [specfile[sid] for sid in scan_ids]
     for scan in scans_to_process:
-        for document_name, document in specscan_to_document_stream(
-                scan, validate=validate):
-            yield document_name, document
+        try:
+            for document_name, document in spec_to_document(
+                    scan, scan_ids=scan_ids, validate=validate,
+                    check_in_broker=check_in_broker):
+                yield document_name, document
+        except NotImplementedError as e:
+            warnings.warn(e.args[0])
 
+
+@spec_to_document.register(Specscan)
+def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+    """
+    Handle the case when type(specfile) == Specscan
+    """
+    for document_name, document in specscan_to_document_stream(
+            specfile, validate=validate, check_in_broker=check_in_broker):
+        yield document_name, document
 
 def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
     """
