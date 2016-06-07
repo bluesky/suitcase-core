@@ -1211,15 +1211,9 @@ class DocumentToSpec(CallbackBase):
             f.write(msg)
 
 
-_insert_map = {
-    event_model.DocumentNames.start: "insert_run_start",
-    event_model.DocumentNames.stop: "insert_run_stop",
-    event_model.DocumentNames.descriptor: "insert_descriptor",
-    event_model.DocumentNames.event: "insert_event",
-}
-
-
-
+# ##########################################################################
+# Code for inserting documents into metadatastore
+# ##########################################################################
 @singledispatch
 def insert_into_broker(specscan, validate=False, check_in_broker=True):
     """
@@ -1255,7 +1249,7 @@ def insert_into_broker(specscan, validate=False, check_in_broker=True):
             # metadatastore does not know how to handle the _name
             doc_dict = dict(doc)
             doc_dict.pop('_name', None)
-            getattr(mdsc, _insert_map[doc_name])(**doc_dict)
+            mdsc.insert(doc_name.name, doc_dict)
         elif len(documents) == 1:
             logger.debug("{} with uid: {} already exists in mds".format(
                 doc_name, doc.uid))
