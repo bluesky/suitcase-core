@@ -115,6 +115,7 @@ def test_spec_to_document(sf, scan_ids):
             else:
                 assert len(specscan.scan_data) == len(ev)
 
+
 def test_equality(spec_filename):
     sf1 = Specfile(spec_filename)
     sf2 = Specfile(spec_filename)
@@ -122,6 +123,7 @@ def test_equality(spec_filename):
 
     assert sf1 != 'cat'
     assert sf1[-1] != 'cat'
+
 
 def test_lt(spec_filename):
     sf = Specfile(spec_filename)
@@ -144,7 +146,6 @@ def _round_trip(specfile_object, new_specfile_name=None):
     sf1 = Specfile(new_specfile_name)
 
     return sf1
-
 
 
 def test_round_trip_from_specfile(spec_filename):
@@ -239,9 +240,7 @@ def test_insert_document_stream(specdata):
                 specscan_to_document_stream(scan, check_in_broker=False)):
             assert checked[1].uid != unchecked[1].uid
 
-#
-# def test_double_insert_document_stream(spec_filename):
-#     sf = Specfile(spec_filename)
-#     scan = next(iter(sf))
-#     insert_into_broker(scan)
-#     insert_into_broker(scan)
+
+@pytest.mark.xfail(reason='Testing `insert_into_broker` with bad input')
+def test_bad_document_stream():
+    insert_into_broker('cat')
