@@ -478,25 +478,20 @@ def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
             "`check_in_broker=False` or install metadatastore."
         )
     # do the conversion!
-    document_name, document = next(to_run_start(
-        scan, validate=validate, check_in_broker=check_in_broker))
+    kw = {'validate': validate, 'check_in_broker': check_in_broker}
+    document_name, document = next(to_run_start(scan, **kw))
     start_uid = document['uid']
     # yield the start document
     yield document_name, document
     # yield the baseline descriptor and its event
-    for document_name, document in to_baseline(
-            scan, start_uid, validate=validate,
-            check_in_broker=check_in_broker):
+    for document_name, document in to_baseline(scan, start_uid, **kw):
         yield document_name, document
-    for document_name, document in to_events(
-            scan, start_uid, validate=validate,
-            check_in_broker=check_in_broker):
+    for document_name, document in to_events(scan, start_uid, **kw):
         # yield the descriptor and events
         yield document_name, document
     # make sure the run was finished before it was stopped
     # yield the stop document
-    gen = to_stop(scan, start_uid, validate=validate,
-                  check_in_broker=check_in_broker)
+    gen = to_stop(scan, start_uid, **kw)
     document_name, document = next(gen)
     yield document_name, document
 
