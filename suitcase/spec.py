@@ -438,6 +438,12 @@ def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
         metadatastore.  You will need to call find_* yourself to determine
         if it does exist
     """
+    if mdsc is None and validate:
+        raise NotImplementedError(
+            "It is not possible to use the `check_in_broker=True` unless you "
+            "have metadatastore installed. Please re-run this function with "
+            "`check_in_broker=False` or install metadatastore."
+        )
     # do the conversion!
     document_name, document = next(to_run_start(
         scan, validate=validate, check_in_broker=check_in_broker))
@@ -1228,8 +1234,19 @@ def insert_into_broker(specscan, validate=False, check_in_broker=True):
                     schema defined in event_model
     check_in_broker : bool
         True/False: Do/Don't check to see if the document already exists in
-        metadatastore.  If it does, the document will be replaced with the one
-        that is already in metadatastore
+                    metadatastore.  If it does, the document will be replaced
+                    with the one that is already in metadatastore
+    """
+    raise NotImplementedError(
+        "insert_into_broker is not implemented for arguments of type: {}. "
+        "Please request this issue at https://github.com/NSLS-II/suitcase."
+        "".format(type(specscan))
+    )
+
+@insert_into_broker.register(Specscan)
+def _(specscan, validate=False, check_in_broker=True):
+    """
+    Handle the case where type(specscan) == Specscan
     """
     if mdsc is None:
         raise RuntimeError("metadatastore is not available. This function is "
@@ -1258,7 +1275,7 @@ def insert_into_broker(specscan, validate=False, check_in_broker=True):
 @insert_into_broker.register(Specfile)
 def _(specscan, validate=False, check_in_broker=True):
     """
-    Iterate over the scans in the specfile
+    Handle the case where type(specscan) == Specfile
     """
     for scan in specscan:
         insert_into_broker(scan, validate=validate,
