@@ -14,13 +14,12 @@ from metadatastore.test.utils import mds_setup, mds_teardown
 
 from databroker import db
 from databroker.core import Header
-from suitcase.spec import (Specfile, spec_to_document, DocumentToSpec,
-                           Specscan, specscan_to_document_stream,
-                           insert_into_broker, logger)
+from suitcase import spec
+
 stream_handler = logging.StreamHandler()
 stream_handler.setLevel(logging.DEBUG)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(stream_handler)
+spec.logger.setLevel(logging.DEBUG)
+spec.logger.addHandler(stream_handler)
 
 def setup_function(function):
     mds_setup()
@@ -36,12 +35,12 @@ def spec_filename():
 
 
 def test_spec_parsing(spec_filename):
-    sf = Specfile(spec_filename)
+    sf = spec.Specfile(spec_filename)
     assert len(sf) == 34
 
 
 def test_spec_attrs_smoke(spec_filename):
-    sf = Specfile(spec_filename)
+    sf = spec.Specfile(spec_filename)
     # smoketest Specfile.__str__
     str(sf)
     # smoketest Specfile.__getitem__
@@ -57,15 +56,15 @@ def test_spec_attrs_smoke(spec_filename):
 
 @pytest.mark.xfail(reason='Testing `spec_to_document` with bad input')
 def test_spec_to_document_bad_input():
-    list(spec_to_document(2))
+    list(spec.spec_to_document(2))
 
 
 @pytest.mark.parametrize(
     "sf, scan_ids",
     itertools.product(
         [spec_filename(),
-         Specfile(spec_filename()),
-         Specfile(spec_filename())[1]],
+         spec.Specfile(spec_filename()),
+         spec.Specfile(spec_filename())[1]],
         [1, [1, 2], None]))
 def test_spec_to_document(sf, scan_ids):
     map = {
@@ -75,9 +74,9 @@ def test_spec_to_document(sf, scan_ids):
         'event': insert_event
     }
     start_uids = list()
-    for document_name, document in spec_to_document(sf,
-                                                    scan_ids=scan_ids,
-                                                    validate=True):
+    for document_name, document in spec.spec_to_document(sf,
+                                                         scan_ids=scan_ids,
+                                                         validate=True):
         document = dict(document)
         del document['_name']
         if not isinstance(document_name, str):
@@ -102,10 +101,10 @@ def test_spec_to_document(sf, scan_ids):
     # make sure we are not getting duplicates back out
     hdr_uids = [hdr.start.uid for hdr in hdrs]
     assert len(hdr_uids) == len(set(hdr_uids))
-    if isinstance(sf, Specscan):
+    if isinstance(sf, spec.Specscan):
         sf = [sf]
     if isinstance(sf, str):
-        sf = Specfile(sf)
+        sf = spec.Specfile(sf)
     for hdr, specscan in zip(hdrs, sf):
         for descriptor in hdr.descriptors:
             ev = list(get_events_generator(descriptor))
@@ -117,8 +116,8 @@ def test_spec_to_document(sf, scan_ids):
 
 
 def test_equality(spec_filename):
-    sf1 = Specfile(spec_filename)
-    sf2 = Specfile(spec_filename)
+    sf1 = spec.Specfile(spec_filename)
+    sf2 = spec.Specfile(spec_filename)
     assert sf1 == sf2
 
     assert sf1 != 'cat'
@@ -126,7 +125,7 @@ def test_equality(spec_filename):
 
 
 def test_lt(spec_filename):
-    sf = Specfile(spec_filename)
+    sf = spec.Specfile(spec_filename)
     for s1, s2 in zip(sf, sf[1:]):
         assert s1 < s2
 
@@ -135,21 +134,21 @@ def _round_trip(specfile_object, new_specfile_name=None):
     if new_specfile_name is None:
         new_specfile_name = tempfile.NamedTemporaryFile().name
 
-    document_stream = spec_to_document(specfile_object)
-    cb = DocumentToSpec(new_specfile_name)
+    document_stream = spec.spec_to_document(specfile_object)
+    cb = spec.DocumentToSpec(new_specfile_name)
     for doc_name, doc in document_stream:
         # RunEngine.subscribe does the translation of 'start' <->
         # event_model.DocumentNames.start under the hood. Since we do not have
         # this magic here, we have to do it by hand
         cb(doc_name.name, doc)
 
-    sf1 = Specfile(new_specfile_name)
+    sf1 = spec.Specfile(new_specfile_name)
 
     return sf1
 
 
 def test_round_trip_from_specfile(spec_filename):
-    sf = Specfile(spec_filename)
+    sf = spec.Specfile(spec_filename)
     sf1 = _round_trip(sf)
 
     # this will probably fail because we cannot convert *all* spec scan types.
@@ -175,7 +174,7 @@ def test_round_trip_from_run_engine():
     RE = setup_test_run_engine()
     RE.ignore_callback_exceptions = False
     fname = tempfile.NamedTemporaryFile().name
-    cb = DocumentToSpec(fname)
+    cb = spec.DocumentToSpec(fname)
     RE.subscribe('all', cb)
     gs.DETS = [det]
     RE(dscan(motor, -1, 1, 10))
@@ -188,7 +187,7 @@ def test_round_trip_from_run_engine():
 
     RE(a2scan(motor, -1, 1, motor1, -1, 1, 10))
 
-    sf = Specfile(fname)
+    sf = spec.Specfile(fname)
     sf1 = _round_trip(sf)
 
     # a2scan is not round trippable
@@ -197,50 +196,23 @@ def test_round_trip_from_run_engine():
     assert len(sf) == (len(sf1) + num_unconvertable_scans)
 
 
-def _insert_helper(specscan):
-    doc_gen = specscan_to_document_stream(specscan, validate=True)
-
-    for doc_name, doc in doc_gen:
-        if doc_name == event_model.DocumentNames.start:
-            print('inserting {}'.format(doc_name))
-            insert_run_start(**doc)
-        elif doc_name == event_model.DocumentNames.descriptor:
-            print('inserting {}'.format(doc_name))
-            insert_descriptor(**doc)
-        elif doc_name == event_model.DocumentNames.event:
-            print('inserting {}'.format(doc_name))
-            # can't send in the _name attribute
-            ev_doc = dict(doc)
-            del ev_doc['_name']
-            insert_event(**ev_doc)
-        elif doc_name == event_model.DocumentNames.stop:
-            print('inserting {}'.format(doc_name))
-            insert_run_stop(**doc)
+def test_insert_specscan(spec_filename):
+    specfile = spec.Specfile(spec_filename)
+    scan = next(iter(specfile))
+    spec.insert_specscan_into_broker(scan)
 
 
-@pytest.mark.parametrize(
-    'specdata',
-    [[Specfile(spec_filename())[1]],  # Send in one specscan
-      Specfile(spec_filename())])  # Send in a whole specfile
-def test_insert_document_stream(specdata):
-    from suitcase.spec import _find_map
-    import metadatastore.commands as mdsc
+def test_insert_specfile(spec_filename):
+    specfile = spec.Specfile(spec_filename)
+    # Can only insert the spec scans whose type is in the _BLUESKY_PLAN_NAMES
+    # list
+    scans_expected_to_fail = [scan for scan in specfile if scan.scan_command
+                              not in spec._BLUESKY_PLAN_NAMES]
+    fail_tuple = spec.insert_specfile_into_broker(specfile)
 
-    for scan in specdata:
-        # make sure that none of these documents exists in metadatastore
-        for doc_name, doc in specscan_to_document_stream(scan, validate=False):
-            assert not list(getattr(mdsc, _find_map[doc_name])(uid=doc.uid))
-
-        # now insert these documents into the databroker
-        insert_into_broker(scan)
-
-        # then make sure that all of them made it in
-        for checked, unchecked in zip(
-                specscan_to_document_stream(scan, check_in_broker=True),
-                specscan_to_document_stream(scan, check_in_broker=False)):
-            assert checked[1].uid != unchecked[1].uid
+    assert len(scans_expected_to_fail) == len(fail_tuple)
 
 
 @pytest.mark.xfail(reason='Testing `insert_into_broker` with bad input')
 def test_bad_document_stream():
-    insert_into_broker('cat')
+    spec.insert_specscan_into_broker('cat')
