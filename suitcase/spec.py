@@ -631,12 +631,11 @@ def to_run_start(specscan, validate=False, check_in_broker=False, **md):
         processed with a callback from the ``callbacks`` project.
     """
     if specscan.scan_command not in _SPEC_SCAN_NAMES:
-        warnings.warn("Cannot convert scan {0} to a document stream. {1} is "
-                      "not a scan that I know how to convert.  I can only "
-                      "convert {2}".format(specscan.scan_id,
-                                           specscan.scan_command,
-                                           _SPEC_SCAN_NAMES))
-        return
+        msg = ("Cannot convert scan {0} to a document stream. {1} is not a "
+               "scan that I know how to convert.  I can only convert {2}"
+               "".format(specscan.scan_id, specscan.scan_command,
+                         _SPEC_SCAN_NAMES))
+        raise NotImplementedError(msg)
     plan_name = _BLUESKY_PLAN_NAMES[_SPEC_SCAN_NAMES.index(specscan.scan_command)]
     run_start_dict = {
         'time': _get_timestamp(specscan.time_from_date),
