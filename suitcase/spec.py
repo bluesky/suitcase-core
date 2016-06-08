@@ -7,7 +7,7 @@ import logging
 import os
 import uuid
 import warnings
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, deque
 from datetime import datetime
 
 import doct
@@ -176,6 +176,7 @@ def parse_spec_scan(raw_scan_data):
     # md['detectors'] =
     md['motor_values'] = []
     md['geometry'] = []
+    md['timestamp_and_comment'] = []
     line_hash_mapping = {
         '#G': 'geometry',
         '#P': 'motor_values',
@@ -200,19 +201,40 @@ def parse_spec_scan(raw_scan_data):
                 # elements with line_type[:2]
                 vals = [float(v) for v in line_contents.split()]
                 md[line_hash_mapping[line_type[:2]]].extend(vals)
+            elif line_type == "#C":
+                md['timestamp_and_comment'].append(line)
+            else:
+                print("Ignoring the following line because I don't know how "
+                      "to interpret it:\n\t{}\n".format(line))
     # iterate through the lines again and capture just the scan data
-    scan_data = np.asarray([line.split() for line in raw_scan_data
-                           if not line.startswith('#') if line])
+    scan_data = deque()
+    for line in raw_scan_data:
+        if not line:
+            continue
+        elif line.startswith('#'):
+            # this is a comment line and we only care about scan data
+            continue
+        elif '#' in line:
+            # spec will faithfully abort _whenever_ you ask it to, so it is
+            # possible to get partial lines written out that contain the
+            # abort comment in-line with the rest of the data
+            logger.debug("line contains a hash (#). I think this is the end "
+                         "of the scan...\n\t{}\n".format(line))
+            break
+        else:
+            scan_data.append(line.split())
+    scan_data_array = np.asarray(scan_data)
     dataframe_kw = {'data': None, 'columns': md['col_names'], 'dtype': float}
     try:
-        x = scan_data[:,0]
+        x = scan_data_array[:, 0]
     except IndexError:
         # there must be no scan data...
         # Turns out that returning None is not a good idea. Return an empty
         # dataframe instead
-        logger.debug("No scan data for scan {}.".format(S_row))
+        logger.debug("No scan data for scan {}: {}.".format(md['scan_id'],
+                                                            S_row))
     else:
-        dataframe_kw.update({'data': scan_data, 'index': x})
+        dataframe_kw.update({'data': scan_data_array, 'index': x})
     df = pd.DataFrame(**dataframe_kw)
     df.index.name = md['x_name']
     return md, df
@@ -451,6 +473,7 @@ def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
     for document_name, document in specscan_to_document_stream(
             specfile, validate=validate, check_in_broker=check_in_broker):
         yield document_name, document
+
 
 def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
     """
