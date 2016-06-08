@@ -144,8 +144,9 @@ def parse_spec_header(spec_header):
             parsed_header[line_type] = line_contents
 
     if not any([v != [] for v in parsed_header.values()]):
-        raise ValueError("There is no parse-able content in the spec header. "
-                         "This spec file might be malformed...")
+        raise NotImplementedError(
+            "There is no parse-able content in the spec header. This spec "
+            "file might be malformed...")
     return parsed_header
 
 
@@ -207,8 +208,9 @@ def parse_spec_scan(raw_scan_data):
             elif line_type == "#C":
                 md['timestamp_and_comment'].append(line)
             else:
-                print("Ignoring the following line because I don't know how "
-                      "to interpret it:\n\t{}\n".format(line))
+                raise NotImplementedError(
+                    "Not sure how to parse the following line because I don't "
+                    "know how to interpret it:\n\t{}\n".format(line))
     # iterate through the lines again and capture just the scan data
     scan_data = deque()
     for line in raw_scan_data:

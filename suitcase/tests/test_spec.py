@@ -47,9 +47,22 @@ def specfile_no_header():
                         'no-file-header')
 
 
+@pytest.fixture(scope='module')
+def specfile_multiple_headers():
+    return os.path.join(os.path.dirname(__file__), 'data',
+                        'multiple-file-headers')
+
+
+@pytest.mark.xfail(reason='Making sure that multiple file headers in one '
+                          'file raises a NotImplementedError')
+def test_multiple_headers(specfile_multiple_headers):
+    spec.Specfile(specfile_multiple_headers)
+
+
+@pytest.mark.xfail(reason='Making sure that no file header in a specfile '
+                          'raises a NotImplementedError')
 def test_bad_header(specfile_no_header):
-    with pytest.raises(ValueError):
-        spec.Specfile(specfile_no_header)
+    spec.Specfile(specfile_no_header)
 
 
 def test_spec_parsing(spec_filename):
