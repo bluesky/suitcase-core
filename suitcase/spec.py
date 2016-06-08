@@ -140,7 +140,7 @@ def parse_spec_header(spec_header):
             parsed_header[attr] = func(line_contents)
         else:
             # I have no idea what to do with this line...
-            warnings.warn("I am not sure how to parse %s" % line_type)
+            logger.debug("I am not sure how to parse %s" % line_type)
             parsed_header[line_type] = line_contents
 
     if not any([v != [] for v in parsed_header.values()]):
@@ -467,7 +467,7 @@ def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
                     check_in_broker=check_in_broker):
                 yield document_name, document
         except NotImplementedError as e:
-            warnings.warn(e.args[0])
+            logger.debug(e.args[0])
 
 
 @spec_to_document.register(Specscan)
@@ -734,8 +734,8 @@ def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
     try:
         specscan.hkl
     except AttributeError:
-        warnings.warn("scan {0} does not have hkl values"
-                      "".format(specscan.scan_id))
+        logger.debug("scan {0} does not have hkl values"
+                     "".format(specscan.scan_id))
     else:
         data_keys.update({k: {'dtype': 'number',
                               'shape': [],
@@ -864,8 +864,8 @@ def to_stop(specscan, start_uid, validate=False, check_in_broker=False, **md):
         md['reason'] = ('Expected events: {}. Actual events: {}'
                         ''.format(expected_events, actual_events))
         md['exit_status'] = 'abort'
-        warnings.warn('scan %s only has %s/%s points. Assuming scan was '
-                      'aborted. start_uid=%s' % (specscan.scan_id,
+        logger.debug('scan %s only has %s/%s points. Assuming scan was '
+                     'aborted. start_uid=%s' % (specscan.scan_id,
                                                  actual_events,
                                                  expected_events,
                                                  start_uid))
@@ -1000,7 +1000,7 @@ def _get_motor_name(start):
     motor_name = start['motors']
     # We only support a single scanning motor right now.
     if len(motor_name) > 1:
-        warnings.warn(
+        raise NotImplementedError(
             "Your scan has {0} scanning motors. They are {1}. Conversion to a"
             "specfile does not understand what to do with multiple scanning. "
             "Please request this feature at "
@@ -1213,7 +1213,6 @@ class DocumentToSpec(CallbackBase):
                 "Until that time, this DocumentToSpec callback will raise a "
                 "NotImplementedError if you try to use it with two event "
                 "streams.")
-            warnings.warn(err_msg)
             raise NotImplementedError(err_msg)
         else:
             logger.debug("primary descriptor received")
@@ -1237,7 +1236,7 @@ class DocumentToSpec(CallbackBase):
                     "your scans with baseline events being recorded. If you "
                     "need help doing this, please request help at "
                     "https://github.com/NSLS-II/Bug-Reports/issues")
-                warnings.warn(err_msg)
+                logger.debug(err_msg)
             # maybe write a new header if there is not one already
             self._write_new_header()
             # write the scan header with whatever information we currently have
@@ -1256,7 +1255,6 @@ class DocumentToSpec(CallbackBase):
                 "Until that time, this DocumentToSpec callback will raise a "
                 "NotImplementedError if you try to use it with two event "
                 "streams.")
-            warnings.warn(err_msg)
             raise NotImplementedError(err_msg)
         # We must be receiving a primary event
         logger.debug("Received primary event document")
