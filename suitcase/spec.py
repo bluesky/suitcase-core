@@ -203,16 +203,19 @@ def parse_spec_scan(raw_scan_data):
     # iterate through the lines again and capture just the scan data
     scan_data = np.asarray([line.split() for line in raw_scan_data
                            if not line.startswith('#') if line])
+    dataframe_kw = {'data': None, 'columns': md['col_names'], 'dtype': float}
     try:
         x = scan_data[:,0]
     except IndexError:
         # there must be no scan data...
-        return md, None
-
-    scan_data = pd.DataFrame(
-        data=scan_data, columns=md['col_names'], index=x, dtype=float)
-    scan_data.index.name = md['x_name']
-    return md, scan_data
+        # Turns out that returning None is not a good idea. Return an empty
+        # dataframe instead
+        logger.debug("No scan data for scan {}.".format(S_row))
+    else:
+        dataframe_kw.update({'data': scan_data, 'index': x})
+    df = pd.DataFrame(**dataframe_kw)
+    df.index.name = md['x_name']
+    return md, df
 
 
 class Specfile(object):

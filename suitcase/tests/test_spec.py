@@ -35,17 +35,23 @@ def spec_filename():
     return os.path.join(os.path.dirname(__file__), 'data', '20160219.spec')
 
 
+@pytest.fixture(scope='module')
+def specfile_no_scandata():
+    return os.path.join(os.path.dirname(__file__), 'data',
+                        'specfile_no_scandata.spec')
+
 def test_spec_parsing(spec_filename):
     sf = spec.Specfile(spec_filename)
     assert len(sf) == 34
 
-
-def test_spec_attrs_smoke(spec_filename):
-    sf = spec.Specfile(spec_filename)
+@pytest.mark.parametrize('sf', [spec.Specfile(spec_filename()),
+                                      spec.Specfile(specfile_no_scandata())])
+def test_spec_attrs_smoke(sf):
     # smoketest Specfile.__str__
     str(sf)
     # smoketest Specfile.__getitem__
-    scan = sf[1]
+    scans = [sf[scan.scan_id] for scan in sf]
+    scan = scans[0]
     # smoketest Specscan.__repr__
     repr(scan)
     # smoketest Specscan.__len__
