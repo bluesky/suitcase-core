@@ -143,6 +143,9 @@ def parse_spec_header(spec_header):
             warnings.warn("I am not sure how to parse %s" % line_type)
             parsed_header[line_type] = line_contents
 
+    if not any([v != [] for v in parsed_header.values()]):
+        raise ValueError("There is no parse-able content in the spec header. "
+                         "This spec file might be malformed...")
     return parsed_header
 
 

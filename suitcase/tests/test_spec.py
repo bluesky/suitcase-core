@@ -32,17 +32,30 @@ def teardown_function(function):
 
 @pytest.fixture(scope='module')
 def spec_filename():
-    return os.path.join(os.path.dirname(__file__), 'data', '20160219.spec')
+    return os.path.join(os.path.dirname(__file__), 'data', '20160219')
 
 
 @pytest.fixture(scope='module')
 def specfile_no_scandata():
     return os.path.join(os.path.dirname(__file__), 'data',
-                        'specfile_no_scandata.spec')
+                        'specfile_no_scandata')
+
+
+@pytest.fixture(scope='module')
+def specfile_no_header():
+    return os.path.join(os.path.dirname(__file__), 'data',
+                        'no-file-header')
+
+
+def test_bad_header(specfile_no_header):
+    with pytest.raises(ValueError):
+        spec.Specfile(specfile_no_header)
+
 
 def test_spec_parsing(spec_filename):
     sf = spec.Specfile(spec_filename)
     assert len(sf) == 34
+
 
 @pytest.mark.parametrize('sf', [spec.Specfile(spec_filename()),
                                       spec.Specfile(specfile_no_scandata())])
