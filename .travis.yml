@@ -43,13 +43,7 @@ install:
     else
       pip install singledispatch;
     fi;
-  # add the --force flag so that conda >4 doesn't remove the pacakges that
-  # depend on metadatastore
-#  - conda remove metadatastore --force
-  # install metadatastore master until there is a tagged version that contains
-  # https://github.com/NSLS-II/metadatastore/pull/203 because
-  # `metadatastore.utils.testing` was moved to `metadatastore.test.utils`
-#  - pip install https://github.com/NSLS-II/metadatastore/zipball/master#egg=metadatastore
+  - pip install prettytable
   - pip install codecov
   - python setup.py install
   # Need to clean the python build directory (and other cruft) or pytest is
