@@ -7,7 +7,7 @@ import logging
 import os
 import uuid
 import warnings
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from datetime import datetime
 
 import doct
@@ -17,6 +17,7 @@ import jsonschema
 import numpy as np
 import pandas as pd
 import six
+from prettytable import PrettyTable
 
 try:
     from functools import singledispatch
@@ -1258,10 +1259,12 @@ def insert_specscan_into_broker(specscan, validate=False,
     ----------
     specscan : Specscan
         The Specscan object to insert into the databroker
-    validate : bool
+    validate : bool, optional
+        Defaults to False.
         True/False: Do/Don't validate the document dict against the json
                     schema defined in event_model
-    check_in_broker : bool
+    check_in_broker : bool, optional
+        Defaults to True.
         True/False: Do/Don't check to see if the document already exists in
                     metadatastore.  If it does, the document will be replaced
                     with the one that is already in metadatastore
@@ -1285,7 +1288,7 @@ def insert_specscan_into_broker(specscan, validate=False,
         inserted = False
         if not documents:
             # insert the document
-            print("inserting {} with uid={}".format(doc_name, doc.uid))
+            logger.debug("inserting {} with uid={}".format(doc_name, doc.uid))
             # metadatastore does not know how to handle the _name
             doc_dict = dict(doc)
             doc_dict.pop('_name', None)
@@ -1304,16 +1307,21 @@ def insert_specfile_into_broker(specfile, validate=False,
                                 check_in_broker=True):
 
     """
-    Insert a single spec scan into the databroker
+    Insert all (most) scans in a specfile into the databroker
+
+    Scans whose type is not in the module-level variable _BLUESKY_PLAN_NAMES
+    will not be inserted into the databroker.
 
     Parameters
     ----------
     specfile : Specfile
         The Specfile object to insert into the databroker
     validate : bool
+        Defaults to False.
         True/False: Do/Don't validate the document dict against the json
                     schema defined in event_model
     check_in_broker : bool
+        Defaults to True.
         True/False: Do/Don't check to see if the document already exists in
                     metadatastore.  If it does, the document will be replaced
                     with the one that is already in metadatastore
@@ -1328,6 +1336,11 @@ def insert_specfile_into_broker(specfile, validate=False,
     failed : list
         List of tuples of the scan object and the error that was raised for
         any scans that failed to insert
+
+    Notes
+    -----
+    see `summarize_insertion` for a helper function to format the return values
+    of this function
     """
     suceeded = []
     failed = []
@@ -1340,3 +1353,42 @@ def insert_specfile_into_broker(specfile, validate=False,
             failed.append((scan, e))
 
     return suceeded, failed
+
+
+def summarize_insertion(suceeded, failed):
+    """
+    Helper function that takes the output of `insert_specfile_into_broker`,
+    formats it into easy-to-parse information and prints it out to the console
+
+    Usage
+    -----
+    >>> ret = insert_specfile_into_broker(specfile_object)
+    >>> summarize_insertion(*ret)
+    """
+    logger.info('{} scans failed to be inserted'.format(len(failed)))
+    for scan, exception in failed:
+        logger.info('{:>10}: {}'.format(scan.scan_id, exception))
+    order = [event_model.DocumentNames.start,
+             event_model.DocumentNames.descriptor,
+             event_model.DocumentNames.event,
+             event_model.DocumentNames.stop]
+    table = PrettyTable(field_names=['scan_ids', 'start', 'descriptor',
+                                     'event', 'stop'])
+    for scan, uids in suceeded:
+        docs = defaultdict(list)
+        for uid in uids:
+            docs[uid.doc_name].append(uid)
+        # print out a summary that shows the number of documents that were
+        # inserted for each scan, including the number that already existed in
+        # metadatastore
+        summarize = lambda x: "{}/{}".format(
+            len([item for item in x if item.inserted]), len(x))
+
+        row = [scan.scan_id] + [summarize(docs[k]) for k in order]
+        table.add_row(row)
+    logger.info('{} scans were successfully converted to a document stream'
+                '\n'.format(len(table._rows)))
+    logger.info('The following table shows the number of documents that '
+                'were inserted for each type of document versus the total '
+                'number of documents that were created for each scan\n')
+    logger.info(table.get_string())

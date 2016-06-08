@@ -211,6 +211,9 @@ def test_insert_specfile(spec_filename):
     suceeded, failed = spec.insert_specfile_into_broker(specfile)
     assert len(scans_expected_to_fail) == len(failed)
 
+    # smoketest the format output
+    spec.summarize_insertion(suceeded, failed)
+
 
 def test_double_insert_specscan(spec_filename):
     specfile = spec.Specfile(spec_filename)
