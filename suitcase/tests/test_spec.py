@@ -32,7 +32,7 @@ def teardown_function(function):
 
 @pytest.fixture(scope='module')
 def spec_filename():
-    return os.path.join(os.path.dirname(__file__), 'data', '20160219')
+    return os.path.join(os.path.dirname(__file__), 'data', 'sample-spec-file')
 
 
 @pytest.fixture(scope='module')
@@ -54,7 +54,7 @@ def test_bad_header(specfile_no_header):
 
 def test_spec_parsing(spec_filename):
     sf = spec.Specfile(spec_filename)
-    assert len(sf) == 34
+    assert len(sf) == 2
 
 
 @pytest.mark.parametrize('sf', [spec.Specfile(spec_filename()),
@@ -236,7 +236,7 @@ def test_insert_specfile(spec_filename):
 
 def test_double_insert_specscan(spec_filename):
     specfile = spec.Specfile(spec_filename)
-    scan = list(specfile)[1]
+    scan = next(iter(specfile))
     uids = spec.insert_specscan_into_broker(scan)
     assert sum([uid[2] for uid in uids]) == len(uids)
     uids = spec.insert_specscan_into_broker(scan)
