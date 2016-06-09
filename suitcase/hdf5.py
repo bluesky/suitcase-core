@@ -2,6 +2,7 @@ from collections import Mapping
 import warnings
 import h5py
 import json
+import copy
 from metadatastore.commands import get_events_generator
 from databroker.databroker import fill_event
 from databroker.core import Header
@@ -9,14 +10,24 @@ from databroker.core import Header
 
 __version__ = "0.2.2"
 
-def export(headers, filename):
+def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps_opt=True):
     """
+    Create hdf5 file to preserve the structure of databroker. Necessary copy are made at each step, so
+    headers will not be modified.
+
     Parameters
     ----------
     headers : a Header or a list of Headers
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
+    stream_name : string, optional
+        None means save all the data from each descriptor, i.e., user can define stream_name as primary,
+        so only data with descriptor.name == primary will be saved.
+    fields_unwanted : list, optional
+        list of names which are excluded when data is transfered to HDF5 file
+    timestamps_opt : Bool, optional
+        save timestamps or not
     """
     if isinstance(headers, Header):
         headers = [headers]
@@ -35,11 +46,18 @@ def export(headers, filename):
             for i, descriptor in enumerate(descriptors):
                 # make sure it's a dictionary and trim any spurious keys
                 descriptor = dict(descriptor)
+                if stream_name:
+                    if descriptor['name'] != stream_name:
+                        continue
                 descriptor.pop('_name', None)
 
                 desc_group = group.create_group(descriptor['uid'])
 
-                data_keys = descriptor.pop('data_keys')
+                data_keys = dict(descriptor.pop('data_keys'))
+                if fields_unwanted is not None:
+                    for key in fields_unwanted:
+                        data_keys.pop(key, None)
+
                 _safe_attrs_assignment(desc_group, descriptor)
 
                 events = list(get_events_generator(descriptor=descriptor))
@@ -47,14 +65,17 @@ def export(headers, filename):
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)
                 data_group = desc_group.create_group('data')
-                ts_group = desc_group.create_group('timestamps')
+                if timestamps_opt:
+                    ts_group = desc_group.create_group('timestamps')
                 [fill_event(e) for e in events]
+
                 for key, value in data_keys.items():
                     value = dict(value)
-                    timestamps = [e['timestamps'][key] for e in events]
-                    ts_group.create_dataset(key, data=timestamps,
-                                            compression='gzip',
-                                            fletcher32=True)
+                    if timestamps_opt:
+                        timestamps = [e['timestamps'][key] for e in events]
+                        ts_group.create_dataset(key, data=timestamps,
+                                                compression='gzip',
+                                                fletcher32=True)
                     data = [e['data'][key] for e in events]
                     dataset = data_group.create_dataset(
                         key, data=data, compression='gzip', fletcher32=True)
