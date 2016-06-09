@@ -675,6 +675,7 @@ def to_run_start(specscan, validate=False, check_in_broker=False, **md):
         'scan_id': specscan.scan_id,
         'uid': str(uuid.uuid4()),
         'specpath': specscan.specfile.filename,
+        'specfilename': os.path.basename(specscan.specfile.filename),
         'owner': specscan.specfile.parsed_header['user'],
         'plan_args': specscan.scan_args,
         'motors': [specscan.col_names[0]],
