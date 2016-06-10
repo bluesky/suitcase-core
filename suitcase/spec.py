@@ -372,7 +372,7 @@ class Specscan(object):
     def __eq__(self, obj):
         if not isinstance(obj, type(self)):
             return False
-        return hash(self) == hash(obj)
+        return _md5(self.raw_scan_data) == _md5(obj.raw_scan_data)
 
     def __lt__(self, obj):
         return self.scan_id < obj.scan_id
@@ -384,11 +384,15 @@ class Specscan(object):
 {} """.format(self.scan_id, self.scan_command + " " + " ".join(self.scan_args),
               len(self), self.time_from_date)
 
-    def __hash__(self):
-        s = '\n'.join(self.raw_scan_data)
-        if isinstance(s, six.text_type):
-            s = s.encode()
-        return int(hashlib.md5(s).hexdigest(), 16)
+    # def __hash__(self):
+    #     return int(_md5(self.raw_scan_data)
+
+def _md5(iterable):
+    if not isinstance(iterable, six.string_types):
+        iterable = '\n'.join(iterable)
+    if isinstance(iterable, six.text_type):
+        iterable = iterable.encode()
+    return hashlib.md5(iterable).hexdigest()
 
 ###############################################################################
 # Spec to document code
@@ -686,7 +690,7 @@ def to_run_start(specscan, validate=False, check_in_broker=False, **md):
         'plan_name': plan_name,
         'group': 'SpecToDocumentConverter',
         'beamline_id': 'SpecToDocumentConverter',
-        'hashed_scandata': hash(specscan),
+        'hashed_scandata': _md5(specscan.raw_scan_data),
     }
     run_start_dict.update(**md)
     if validate:
@@ -753,10 +757,10 @@ def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
     descriptor = dict(run_start=start_uid, data_keys=data_keys,
                       time=timestamp, uid=str(uuid.uuid4()),
                       name='baseline',
-                      hashed_scandata=hash(str(
+                      hashed_scandata=_md5(
                           specscan.specfile.parsed_header['motor_spec_names'] +
                           specscan.specfile.parsed_header['motor_human_names']
-                      )))
+                      ))
     if validate:
         _validate(event_model.DocumentNames.descriptor, descriptor)
     if check_in_broker:
@@ -806,7 +810,7 @@ def to_events(specscan, start_uid, validate=False, check_in_broker=False):
                  for col in specscan.col_names}
     descriptor = dict(run_start=start_uid, data_keys=data_keys,
                       time=timestamp, uid=str(uuid.uuid4()),
-                      hashed_scandata=hash(str(specscan.col_names)))
+                      hashed_scandata=_md5(specscan.col_names))
     if validate:
         _validate(event_model.DocumentNames.descriptor, descriptor)
     if check_in_broker:
@@ -875,7 +879,7 @@ def to_stop(specscan, start_uid, validate=False, check_in_broker=False, **md):
                                                  expected_events,
                                                  start_uid))
     timestamp = _get_timestamp(specscan.time_from_date)
-    md['hashed_scandata'] = hash(specscan)
+    md['hashed_scandata'] = _md5(specscan.raw_scan_data)
     stop = dict(run_start=start_uid, time=timestamp, uid=str(uuid.uuid4()),
                 **md)
     if validate:
