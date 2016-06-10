@@ -12,8 +12,7 @@ __version__ = "0.2.2"
 
 def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps_opt=True):
     """
-    Create hdf5 file to preserve the structure of databroker. Necessary copy are made at each step, so
-    headers will not be modified.
+    Create hdf5 file to preserve the structure of databroker.
 
     Parameters
     ----------
@@ -53,7 +52,7 @@ def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps
 
                 desc_group = group.create_group(descriptor['uid'])
 
-                data_keys = dict(descriptor.pop('data_keys'))
+                data_keys = descriptor.pop('data_keys')
                 if fields_unwanted is not None:
                     for key in fields_unwanted:
                         data_keys.pop(key, None)
@@ -70,7 +69,6 @@ def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps
                 [fill_event(e) for e in events]
 
                 for key, value in data_keys.items():
-                    value = dict(value)
                     if timestamps_opt:
                         timestamps = [e['timestamps'][key] for e in events]
                         ts_group.create_dataset(key, data=timestamps,
