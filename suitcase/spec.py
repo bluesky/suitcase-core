@@ -3,6 +3,7 @@
 for the spec file format.
 """
 import copy
+import hashlib
 import logging
 import os
 import uuid
@@ -384,7 +385,10 @@ class Specscan(object):
               len(self), self.time_from_date)
 
     def __hash__(self):
-        return hash('\n'.join(self.raw_scan_data))
+        s = '\n'.join(self.raw_scan_data)
+        if isinstance(s, six.text_type):
+            s = s.encode()
+        return int(hashlib.md5(s).hexdigest(), 16)
 
 ###############################################################################
 # Spec to document code
