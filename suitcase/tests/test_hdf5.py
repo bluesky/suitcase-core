@@ -60,7 +60,7 @@ def test_filter_fields():
     hdr = db[-1]
     unwanted_fields = ['point_det']
     out = hdf5.filter_fields(hdr, unwanted_fields)
-    assert len(out)==0
+    assert len(out)==1
 
 
 def test_hdf5_export_list():
