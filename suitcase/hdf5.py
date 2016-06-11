@@ -2,7 +2,6 @@ from collections import Mapping
 import warnings
 import h5py
 import json
-import copy
 from metadatastore.commands import get_events_generator
 from databroker.databroker import fill_event
 from databroker.core import Header
@@ -10,7 +9,7 @@ from databroker.core import Header
 
 __version__ = "0.2.2"
 
-def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps_opt=True):
+def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps=True):
     """
     Create hdf5 file to preserve the structure of databroker.
 
@@ -25,7 +24,7 @@ def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps
         so only data with descriptor.name == primary will be saved.
     fields_unwanted : list, optional
         list of names which are excluded when data is transfered to HDF5 file
-    timestamps_opt : Bool, optional
+    timestamps : Bool, optional
         save timestamps or not
     """
     if isinstance(headers, Header):
@@ -64,12 +63,12 @@ def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)
                 data_group = desc_group.create_group('data')
-                if timestamps_opt:
+                if timestamps:
                     ts_group = desc_group.create_group('timestamps')
                 [fill_event(e) for e in events]
 
                 for key, value in data_keys.items():
-                    if timestamps_opt:
+                    if timestamps:
                         timestamps = [e['timestamps'][key] for e in events]
                         ts_group.create_dataset(key, data=timestamps,
                                                 compression='gzip',
