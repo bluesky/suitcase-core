@@ -9,7 +9,7 @@ from databroker.core import Header
 
 __version__ = "0.2.2"
 
-def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps=True):
+def export(headers, filename, stream_name=None, fields=None, timestamps=True):
     """
     Create hdf5 file to preserve the structure of databroker.
 
@@ -22,8 +22,8 @@ def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
-    fields_unwanted : list, optional
-        list of names which are excluded when data is transfered to HDF5 file
+    fields : list, optional
+        whitelist of names of interest; if None, all are returned; consistent with name convension in databroker
     timestamps : Bool, optional
         save timestamps or not
     """
@@ -52,9 +52,9 @@ def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps
                 desc_group = group.create_group(descriptor['uid'])
 
                 data_keys = descriptor.pop('data_keys')
-                if fields_unwanted is not None:
-                    for key in fields_unwanted:
-                        data_keys.pop(key, None)
+                name_list = data_keys.keys()
+                if fields is not None:
+                    name_list = fields
 
                 _safe_attrs_assignment(desc_group, descriptor)
 
@@ -67,7 +67,8 @@ def export(headers, filename, stream_name=None, fields_unwanted=None, timestamps
                     ts_group = desc_group.create_group('timestamps')
                 [fill_event(e) for e in events]
 
-                for key, value in data_keys.items():
+                for key in name_list:
+                    value = data_keys[key]
                     if timestamps:
                         timestamps = [e['timestamps'][key] for e in events]
                         ts_group.create_dataset(key, data=timestamps,
@@ -108,3 +109,30 @@ def _safe_attrs_assignment(node, d):
         # recreate the object.
         except TypeError:
             node.attrs[key] = json.dumps(value)
+
+
+def filter_fields(headers, unwanted_fields):
+    """
+    Filter out unwanted fields.
+
+    Parameters
+    ----------
+    headers : doct.Document or a list of that
+        returned by databroker object
+    unwanted_fields : list
+        list of str representing unwanted filed names
+
+    Returns
+    -------
+    set:
+        set of selected names
+    """
+    if isinstance(headers, Header):
+        headers = [headers]
+    whitelist = set()
+    for header in headers:
+        for descriptor in header.descriptors:
+            good = [key for key in descriptor.data_keys.keys()
+                    if key not in unwanted_fields]
+            whitelist.update(good)
+    return whitelist
