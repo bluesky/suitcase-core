@@ -59,7 +59,7 @@ def test_filter_fields():
     temperature_ramp.run()
     hdr = db[-1]
     unwanted_fields = ['point_det']
-    out = hdf5.export(hdr, unwanted_fields)
+    out = hdf5.filter_fields(hdr, unwanted_fields)
     assert len(out)==0
 
 
