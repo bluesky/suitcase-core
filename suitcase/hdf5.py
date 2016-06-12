@@ -52,9 +52,6 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True):
                 desc_group = group.create_group(descriptor['uid'])
 
                 data_keys = descriptor.pop('data_keys')
-                name_list = data_keys.keys()
-                if fields is not None:
-                    name_list = fields
 
                 _safe_attrs_assignment(desc_group, descriptor)
 
@@ -67,8 +64,10 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True):
                     ts_group = desc_group.create_group('timestamps')
                 [fill_event(e) for e in events]
 
-                for key in name_list:
-                    value = data_keys[key]
+                for key, value in data_keys.items():
+                    if fields is not None:
+                        if key not in fields:
+                            continue
                     if timestamps:
                         timestamps = [e['timestamps'][key] for e in events]
                         ts_group.create_dataset(key, data=timestamps,

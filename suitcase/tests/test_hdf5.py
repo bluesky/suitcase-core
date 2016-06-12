@@ -15,7 +15,7 @@ def teardown_function(function):
     mds_teardown()
 
 
-def shallow_header_verify(hdf_path, header):
+def shallow_header_verify(hdf_path, header, fields=None):
     table = get_table(header)
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
@@ -30,6 +30,11 @@ def shallow_header_verify(hdf_path, header):
             # make sure all keys are in each descriptor
             for key in descriptor.data_keys:
                 data_path = "%s/data/%s" % (descriptor_path, key)
+                # check the case when fields kwd is used
+                if fields is not None:
+                    if key not in fields:
+                        assert data_path not in f
+                        continue
                 # make sure that the data path is in the file
                 assert data_path in f
                 # make sure the data is equivalent to what comes out of the
@@ -55,12 +60,24 @@ def test_hdf5_export_single():
     shallow_header_verify(fname.name, hdr)
 
 
+def test_hdf5_export_with_fields_single():
+    """
+    Test the hdf5 export with a single header and
+    verify the output is correct; fields kwd is used.
+    """
+    temperature_ramp.run()
+    hdr = db[-1]
+    fname = tempfile.NamedTemporaryFile()
+    hdf5.export(hdr, fname.name, fields=['point_dev'])
+    shallow_header_verify(fname.name, hdr, fields=['point_dev'])
+
+
 def test_filter_fields():
     temperature_ramp.run()
     hdr = db[-1]
     unwanted_fields = ['point_det']
     out = hdf5.filter_fields(hdr, unwanted_fields)
-    assert len(out)==1
+    assert len(out)==1  #original len is 2, only 1 left after filtering out
 
 
 def test_hdf5_export_list():
