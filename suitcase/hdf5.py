@@ -22,8 +22,11 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True):
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
+        The default is None.
     fields : list, optional
-        whitelist of names of interest; if None, all are returned; consistent with name convension in databroker
+        whitelist of names of interest; if None, all are returned;
+        This is consistent with name convension in databroker.
+        The default is None.
     timestamps : Bool, optional
         save timestamps or not
     """
