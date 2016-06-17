@@ -77,7 +77,7 @@ def test_filter_fields():
     hdr = db[-1]
     unwanted_fields = ['point_det']
     out = hdf5.filter_fields(hdr, unwanted_fields)
-    assert out==('Tsam')  #original list is ('point_det', 'Tsam'), only ('Tsam') left after filtering out
+    assert out==set(['Tsam'])  #original list is ('point_det', 'Tsam'), only ('Tsam') left after filtering out
 
 
 def test_hdf5_export_list():
