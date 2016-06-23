@@ -2,6 +2,9 @@
 `Reference <https://github.com/certified-spec/specPy/blob/master/doc/specformat.rst>`_
 for the spec file format.
 """
+from __future__ import (unicode_literals, absolute_import, print_function,
+                        division)
+import six
 import copy
 import hashlib
 import logging
@@ -10,7 +13,6 @@ import uuid
 import warnings
 from collections import namedtuple, defaultdict, deque
 from datetime import datetime
-
 import doct
 import event_model
 import jinja2
@@ -441,7 +443,10 @@ def spec_to_document(specfile, scan_ids=None, validate=False,
                      "".format(specfile))
 
 
-@spec_to_document.register(str)
+# `register()` takes a single argument, not a tuple, so we need to grab the
+# value out of string_types which is `basestring,` on PY2 and `str,` on PY3
+@spec_to_document.register(six.string_types[0])
+@spec_to_document.register(six.text_type)
 def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
     """
     Handle the case when type(specfile) == str
