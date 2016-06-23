@@ -1020,7 +1020,7 @@ def _get_motor_name(start):
             "Please request this feature at "
             "https://github.com/NSLS-II/suitcase/issues Until this feature is "
             "implemented, we will be using the sequence number as the motor "
-            "position".format((len(motor_name), motor_name)))
+            "position".format(len(motor_name), motor_name))
         return 'seq_num'
     return motor_name[0]
 
