@@ -239,7 +239,7 @@ def parse_spec_scan(raw_scan_data):
         # there must be no scan data...
         # Turns out that returning None is not a good idea. Return an empty
         # dataframe instead
-        logger.debug("No scan data for scan {}: {}.".format(md['scan_id'],
+        logger.warning("No scan data for scan {}: {}.".format(md['scan_id'],
                                                             S_row))
     else:
         dataframe_kw.update({'data': scan_data_array, 'index': x})
@@ -480,7 +480,7 @@ def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
                     check_in_broker=check_in_broker):
                 yield document_name, document
         except NotImplementedError as e:
-            logger.debug(e.args[0])
+            logger.warning(e.args[0])
 
 
 @spec_to_document.register(Specscan)
