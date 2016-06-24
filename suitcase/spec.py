@@ -1,3 +1,11 @@
+#------------------------------------------------------------------------------
+# Copyright (c) 2013, Nucleic Development Team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file COPYING.txt, distributed with this software.
+#------------------------------------------------------------------------------
+
 """
 `Reference <https://github.com/certified-spec/specPy/blob/master/doc/specformat.rst>`_
 for the spec file format.
