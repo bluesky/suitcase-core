@@ -204,7 +204,6 @@ def test_round_trip_from_run_engine():
     from bluesky.global_state import gs
     from bluesky.spec_api import dscan, ascan, ct, a2scan
     RE = setup_test_run_engine()
-    RE.ignore_callback_exceptions = False
     fname = tempfile.NamedTemporaryFile().name
     cb = spec.DocumentToSpec(fname)
     RE.subscribe('all', cb)
