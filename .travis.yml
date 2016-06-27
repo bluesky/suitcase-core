@@ -36,14 +36,13 @@ before_install:
 install:
   - export GIT_FULL_HASH=`git rev-parse HEAD`
   - conda update conda
-  - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage event-model doct jinja2 pandas
+  - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage event-model doct jinja2 pandas prettytable
   - source activate testenv
   - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then
       conda install bluesky;
     else
       pip install singledispatch;
     fi;
-  - pip install prettytable
   - pip install codecov
   - python setup.py install
   # Need to clean the python build directory (and other cruft) or pytest is
@@ -55,7 +54,6 @@ install:
 script:
   - coverage run run_tests.py
   - coverage report -m
-  - . ~/scripts/debug.sh
 
 after_success:
   - codecov
