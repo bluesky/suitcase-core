@@ -9,10 +9,12 @@ source:
 build:
   number: 0
   string: {{ environ.get('GIT_BUILD_STR', '') }}_py{{ py }}
+  script: python setup.py install --single-version-externally-managed --record=record.txt
 
 requirements:
   build:
     - python
+    - setuptools
   run:
     - databroker
     - doct
@@ -22,7 +24,9 @@ requirements:
     - metadatastore
     - numpy
     - pandas
+    - prettytable
     - python
+    - singledispatch  # [py2k]
 
 test:
   imports:

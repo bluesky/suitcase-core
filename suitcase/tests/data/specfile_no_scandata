@@ -1,0 +1,83 @@
+#F 20160316
+#E 1458150932
+#D Wed Mar 16 13:55:32 2016
+#C fourc  User = asuvorov
+
+#O0 Two Theta  Theta  Chi  Phi  CRL_X  CRL_Y  CRL_Th  FSlitTop
+#O1 FSlitBot  FSlitOut  FSlitIn  DCM_Y  DCM_The  DCM_Z2  DCM_P1  DCM_R2
+#O2 DCM_PF  BPM1_P  BPM1_Y  BPM1_DX  BPM1_DY  BPM2_P  BPM2_Y  BPM2_DX
+#O3 BPM2_DY  Slit1Top  Slit1Bot  Slit1Out  Slit1In  Slit2Top  Slit2Bot  Slit2Out
+#O4 Slit2In  SSA_T  SSA_B  VFM_USX  VFM_USY  VFM_DSX  VFM_DSY  VFM_USB
+#O5 VFM_DSB  HFM_USX  HFM_USY  HFM_DSX  HFM_DSY  HFM_USB  HFM_DSB  UGap
+#O6 BL_EN  DCM_EN  KOZ3_X  KOZ3_Y  KOZ3_The  D_Phi  D_The  W_The
+#O7 W_Chi  D_FThe  W_FThe  PD1  PD2  HRM_UX  HRM_UY  HRM_UThe
+#O8 HRM_UChi  HRM_UIF  HRM_UOF  HRM_DX  HRM_DY  HRM_DThe  HRM_DChi  HRM_DIF
+#O9 HRM_DOF  HRM_En  JJT  JJB  JJO  JJI  BICU  BICD
+#O10 Wheel  Slit3Top  Slit3Bot  Slit3Out  Slit3In  PinholeUX  PinholeUY  PinholeDX
+#O11 PinholeDY  STower_Y  STower_X  STower_Z  Sample_Y  Sample_X  Sample_Z  MCMX
+#O12 MCMY  MCMZ  MCMTHE  MCMPHI  MCMCHI  MCMST  MCMSB  MCMS2I
+#O13 MCMS2O  ANA_UY  ANA_DY  ANA_AY  ANA_BY  ANA_DTH  ANA_DYY  ANA_CY
+#O14 ANA_CThe  ANA_CFTh  ANA_CChi  ANA_WFTh  ANA_WChi  D1_The  D1_Phi  D2_The
+#O15 D2_Phi  D3_The  D3_Phi  D4_The  D4_Phi  D5_The  D5_Phi  D6_The
+#O16 D6_Phi  HRM_PD1  HRM_PD2  HRM_PD3  HRM_PD4  HRM_PD5  HRM_BS  SAna_Top
+#O17 SAna_Bot  ANA_PDCW  TDVL1  TDVH1  TDVTH  TDY
+#o0 tth th chi phi crlx crly crlth fst
+#o1 fsb fso fsi dcmy dcmth dcmz2 dcmp1 dcmr2
+#o2 dcmpf bpm1_p bpm1y bpm1dx bpm1dy bpm2_p bpm2y bpm2dx
+#o3 bpm2dy s1t s1b s1o s1i s2t s2b s2o
+#o4 s2i ssat ssab vmux vmuy vmdx vmdy vmub
+#o5 vmdb hmux hmuy hmdx hmdy hmub hmdb ugap
+#o6 blE dcmE k3x k3y k3th dphi dthe wthe
+#o7 wchi dfthe wfthe pd1 pd2 hux huy huth
+#o8 huch huif huof hdx hdy hdth hdch hdif
+#o9 hdof hrmE jjt jjb jjo jji bicu bicd
+#o10 whl s3t s3b s3o s3i phux phuy phdx
+#o11 phdy sty stx stz ssy ssx ssz mcmx
+#o12 mcmy mcmz mcmthe mcmphi mcmchi mcmst mcmsb mcms2i
+#o13 mcms2o anuy andy anay anby adth adyy acyy
+#o14 acth acfth acchi awfth awchi d1the d1phi d2the
+#o15 d2phi d3the d3phi d4the d4phi d5the d5phi d6the
+#o16 d6phi hpd1 hpd2 hpd3 hpd4 hpd5 hbs sant
+#o17 sanb anpd vl1 vh1 vth tdy
+
+#J0 Seconds  Monitor  Detector  PD11  PD12  PD13  PD14  PD21
+#J1 PD22  PD23  PD24  PD31  PD32  PD33  PD34  PD41
+#J2 PD42  PD43  PD44  PD51  PD52  TD1  TD2  TD3
+#J3 TD4  TD5  TD6  SC1  SRcur  AD11  AD13  AD21
+#J4 AD22
+#j0 sec mon det d11 d12 d13 d14 d21
+#j1 d22 d23 d24 d31 d32 d33 d34 d41
+#j2 d42 d43 d44 d51 d52 td1 td2 td3
+#j3 td4 td5 td6 sc1 src c11 c13 c21
+#j4 c22
+
+#S 13  ascan  d3phi -900.003 99.9975  40 1
+#D Wed Mar 16 15:52:17 2016
+#T 1  (Seconds)
+#G0 0 0 0 0 0 1 0 0 0 0 0 0 50 0 0.1 0 68 68 50 -1 1 1 3.13542 3.13542 0 463.6 838.8
+#G1 1.54 1.54 1.54 90 90 90 4.079990459 4.079990459 4.079990459 90 90 90 1 0 0 0 1 0 -0.6 30 0 11.076 0 0 60 30 0 -90 0 0 1.54 1.54 0 0
+#G3 4.079990459 -6.561207576e-16 -6.561207576e-16 0 -4.079990459 2.498273628e-16 0 0 -4.079990459
+#G4 -0.01028314762 0.002069056736 9.153461354e-09 1.54 0 5.244547088e-07 0 -89.99999974 0 0 0 0 0 0 0 0 -180 -180 -180 -180 -180 -180 -180 -180 -180 0
+#Q -0.0102831 0.00206906 9.15346e-09
+#P0 -0.60099184 0 5e-05 11.076 0.0622 0.455 0.0063338504 0.5
+#P1 -0.5 0.6 -0.5995 0.0074 12.504109 0.3645 -34.641026 4471.1538
+#P2 0 3 5e-05 0.614916 0.218299 2 -75.00215 -7.1e-05
+#P3 -0.000188 0.558363 -0.500052 0.999999 -1 0.999993 -1.000116 1.500085
+#P4 -1.499978 0.399951 -0.4 -1.0028 -2.5709 -0.9998 -0.2284 1.0256
+#P5 -12.5704 -0.1873 -4.5033 1.8137 -1.0156 0.7976 -11.2021 7735
+#P6 9129.385 9129.385 -1 0.06375 -291.274 690.864 -161.1614 94.381
+#P7 0 100 64 0 9.779 0 0.47995312 0.0014154738
+#P8 0 784.86422 -29.98555 0 0.57000375 0.01566776 -0.03643125 439.61371
+#P9 -29.985573 103.5 114.58712 21.00689 13.304 21.69043 21.99043 117.27443
+#P10 2.999997 0.20005 -0.20005 0.4001 -0.4 4.8211719 4.90625 5.0771094
+#P11 4.7229687 19.954015 -0.370877 -0.027409 13.9001 -0.75 -0.0775 -1.0555
+#P12 0.992 -2 36.789 11.25 0 -2.00005 5.78565 -0.60323
+#P13 0.57888 4.69248 5.99919 0 0 0 0 3.7355
+#P14 0.173 8.0002 2.3012406 92.999767 0.33018437 -0.00139 1800.0008 -10.00105
+#P15 -1550.0056 0 -100.0025 -9.99966 -1300.0104 9.99966 3484.9932 -9.99966
+#P16 -1160.0069 0 0 0 0 0 2 0.10005
+#P17 -0.10005 700 0.7 1.1 2 1.93
+#N 38
+#L D3_Phi  H  K  L  Epoch  Seconds  Monitor  PD12  PD13  PD14  PD21  PD22  PD23  PD24  PD31  PD32  PD33  PD34  PD41  PD42  PD43  PD44  PD51  PD52  TD1  TD2  TD3  TD4  TD5  TD6  SC1  SRcur  AD11  AD13  AD21  AD22  PD11  Detector
+#C Wed Mar 16 15:52:34 2016.  Scan aborted after 0 points.
+#C Wed Mar 16 15:52:45 2016.  do /usr/local/lib/spec.d/beamchkoff.mac.

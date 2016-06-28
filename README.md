@@ -20,7 +20,7 @@ two important use cases:
 
 Number 2 is planned but not yet implemented.
 
-## Usage
+## Export headers and data into a hdf file
 
 ```python
 from databroker import db
@@ -30,4 +30,27 @@ from suitcase import hdf
 hdrs = db(start_time='2016-03-03', stop_time='2016-03-05')
 fname = '/path/to/output/data'
 hdf.export(hdrs, fname)
+```
+
+## Inserting data in the spec format into the databroker
+
+This functionality is provided so that data that has been collected with spec
+can be inserted into the databroker stack which allows the analysis tools that
+are being written at NSLS-II to be used with this sort of "legacy" data. This
+also has the advantage that "legacy" data can be analyzed along side data that
+was collected with bluesky. Note that there are a number of checks to make sure
+that you do not add data more than one time.
+
+
+```python
+from suitcase import spec
+specfile = spec.Specfile('/path/to/specfile')
+
+# Insert the whole specfile into the databroker
+spec.insert_into_broker(specfile)
+
+# Insert a single scan into the databroker
+scan_id = 1
+specscan = specfile[scan_id]
+spec.insert_into_broker(specscan)
 ```
