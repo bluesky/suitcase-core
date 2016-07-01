@@ -20,6 +20,14 @@ two important use cases:
 
 Number 2 is planned but not yet implemented.
 
+## Conda Recipes
+
+Install the most recent tagged build: `conda install suitcase -c lightsource2-tag`
+
+Install the most recent tagged build: `conda install suitcase -c lightsource2-dev`
+
+Find the tagged recipe [here](https://github.com/NSLS-II/lightsource2-recipes/tree/master/recipes-tag/suitcase) and the dev recipe [here](https://github.com/NSLS-II/lightsource2-recipes/tree/master/recipes-dev/suitcase)
+
 ## Export headers and data into a hdf file
 
 ```python
