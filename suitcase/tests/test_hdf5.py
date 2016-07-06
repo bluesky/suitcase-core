@@ -76,6 +76,21 @@ def test_hdf5_export_single_no_uid():
     shallow_header_verify(fname.name, hdr)
 
 
+@pytest.mark.xfail(reason='name is not included as a key at descriptor'
+                          'from data created at temperature_ramp.'
+                          'But descriptor name is used for real experiment.')
+def test_hdf5_export_single_stream_name():
+    """
+    Test the hdf5 export with a single header and
+    verify the output is correct. No uid is used.
+    """
+    temperature_ramp.run()
+    hdr = db[-1]
+    fname = tempfile.NamedTemporaryFile()
+    hdf5.export(hdr, fname.name, stream_name='primary')
+    #shallow_header_verify(fname.name, hdr)
+
+
 def test_hdf5_export_with_fields_single():
     """
     Test the hdf5 export with a single header and
