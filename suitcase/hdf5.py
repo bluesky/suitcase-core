@@ -55,7 +55,7 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
             if use_uid:
                 top_group_name = header['start']['uid']
             else:
-                top_group_name = header['start']['beamline_id'] + '_' + header['start']['scan_id']
+                top_group_name = str(header['start']['beamline_id']) + '_' + str(header['start']['scan_id'])
             group = f.create_group(top_group_name)
             _safe_attrs_assignment(group, header)
             for i, descriptor in enumerate(descriptors):

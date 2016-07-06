@@ -5,6 +5,7 @@ from suitcase import hdf5
 import tempfile
 import h5py
 import numpy as np
+import pytest
 
 
 def setup_function(function):
@@ -57,6 +58,21 @@ def test_hdf5_export_single():
     hdr = db[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name)
+    shallow_header_verify(fname.name, hdr)
+
+
+@pytest.mark.xfail(reason='name is not included as a key at descriptor'
+                          'from data created at temperature_ramp.'
+                          'But descriptor name is used for real experiment.')
+def test_hdf5_export_single_no_uid():
+    """
+    Test the hdf5 export with a single header and
+    verify the output is correct. No uid is used.
+    """
+    temperature_ramp.run()
+    hdr = db[-1]
+    fname = tempfile.NamedTemporaryFile()
+    hdf5.export(hdr, fname.name, use_uid=False)
     shallow_header_verify(fname.name, hdr)
 
 
