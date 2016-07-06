@@ -17,7 +17,7 @@ from databroker.core import Header
 
 __version__ = "0.2.2"
 
-def export(headers, filename, stream_name=None, fields=None, timestamps=True):
+def export(headers, filename, stream_name=None, fields=None, timestamps=True, use_uid=True):
     """
     Create hdf5 file to preserve the structure of databroker.
 
@@ -37,6 +37,9 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True):
         The default is None.
     timestamps : Bool, optional
         save timestamps or not
+    use_uid : Bool, optional
+        Create group name at hdf file based on uid if this value is set as True.
+        Otherwise group name is created based on beamline id and run id.
     """
     if isinstance(headers, Header):
         headers = [headers]
@@ -49,7 +52,10 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True):
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
                 continue
-            top_group_name = header['start']['uid']
+            if use_uid:
+                top_group_name = header['start']['uid']
+            else:
+                top_group_name = header['start']['beamline_id'] + '_' + header['start']['scan_id']
             group = f.create_group(top_group_name)
             _safe_attrs_assignment(group, header)
             for i, descriptor in enumerate(descriptors):
@@ -60,7 +66,10 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True):
                         continue
                 descriptor.pop('_name', None)
 
-                desc_group = group.create_group(descriptor['uid'])
+                if use_uid:
+                    desc_group = group.create_group(descriptor['uid'])
+                else:
+                    desc_group = group.create_group(descriptor['name'])
 
                 data_keys = descriptor.pop('data_keys')
 
