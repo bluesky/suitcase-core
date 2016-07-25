@@ -17,14 +17,29 @@ from databroker.core import Header
 
 __version__ = "0.2.2"
 
-def export(headers, filename):
+def export(headers, filename, stream_name=None, fields=None, timestamps=True, use_uid=True):
     """
+    Create hdf5 file to preserve the structure of databroker.
+
     Parameters
     ----------
     headers : a Header or a list of Headers
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
+    stream_name : string, optional
+        None means save all the data from each descriptor, i.e., user can define stream_name as primary,
+        so only data with descriptor.name == primary will be saved.
+        The default is None.
+    fields : list, optional
+        whitelist of names of interest; if None, all are returned;
+        This is consistent with name convension in databroker.
+        The default is None.
+    timestamps : Bool, optional
+        save timestamps or not
+    use_uid : Bool, optional
+        Create group name at hdf file based on uid if this value is set as True.
+        Otherwise group name is created based on beamline id and run id.
     """
     if isinstance(headers, Header):
         headers = [headers]
@@ -37,17 +52,27 @@ def export(headers, filename):
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
                 continue
-            top_group_name = header['start']['uid']
+            if use_uid:
+                top_group_name = header['start']['uid']
+            else:
+                top_group_name = str(header['start']['beamline_id']) + '_' + str(header['start']['scan_id'])
             group = f.create_group(top_group_name)
             _safe_attrs_assignment(group, header)
             for i, descriptor in enumerate(descriptors):
                 # make sure it's a dictionary and trim any spurious keys
                 descriptor = dict(descriptor)
+                if stream_name:
+                    if descriptor['name'] != stream_name:
+                        continue
                 descriptor.pop('_name', None)
 
-                desc_group = group.create_group(descriptor['uid'])
+                if use_uid:
+                    desc_group = group.create_group(descriptor['uid'])
+                else:
+                    desc_group = group.create_group(descriptor['name'])
 
                 data_keys = descriptor.pop('data_keys')
+
                 _safe_attrs_assignment(desc_group, descriptor)
 
                 events = list(get_events_generator(descriptor=descriptor))
@@ -55,14 +80,19 @@ def export(headers, filename):
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)
                 data_group = desc_group.create_group('data')
-                ts_group = desc_group.create_group('timestamps')
+                if timestamps:
+                    ts_group = desc_group.create_group('timestamps')
                 [fill_event(e) for e in events]
+
                 for key, value in data_keys.items():
-                    value = dict(value)
-                    timestamps = [e['timestamps'][key] for e in events]
-                    ts_group.create_dataset(key, data=timestamps,
-                                            compression='gzip',
-                                            fletcher32=True)
+                    if fields is not None:
+                        if key not in fields:
+                            continue
+                    if timestamps:
+                        timestamps = [e['timestamps'][key] for e in events]
+                        ts_group.create_dataset(key, data=timestamps,
+                                                compression='gzip',
+                                                fletcher32=True)
                     data = [e['data'][key] for e in events]
                     dataset = data_group.create_dataset(
                         key, data=data, compression='gzip', fletcher32=True)
@@ -98,3 +128,30 @@ def _safe_attrs_assignment(node, d):
         # recreate the object.
         except TypeError:
             node.attrs[key] = json.dumps(value)
+
+
+def filter_fields(headers, unwanted_fields):
+    """
+    Filter out unwanted fields.
+
+    Parameters
+    ----------
+    headers : doct.Document or a list of that
+        returned by databroker object
+    unwanted_fields : list
+        list of str representing unwanted filed names
+
+    Returns
+    -------
+    set:
+        set of selected names
+    """
+    if isinstance(headers, Header):
+        headers = [headers]
+    whitelist = set()
+    for header in headers:
+        for descriptor in header.descriptors:
+            good = [key for key in descriptor.data_keys.keys()
+                    if key not in unwanted_fields]
+            whitelist.update(good)
+    return whitelist
