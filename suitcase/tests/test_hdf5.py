@@ -1,5 +1,6 @@
 from metadatastore.test.utils import mds_setup, mds_teardown
 from metadatastore.examples.sample_data import temperature_ramp
+from metadatastore.commands import get_events_table
 from databroker import db, get_table
 from suitcase import hdf5
 import tempfile
@@ -17,7 +18,6 @@ def teardown_function(function):
 
 
 def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_uid=True):
-    table = get_table(header)
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
         # supposed to be in
@@ -34,6 +34,8 @@ def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_u
             if stream_name is not None:
                 if stream_name != descriptor.name:
                     continue
+            table_load = get_events_table(descriptor)
+            table = table_load[1]  # only get data
             if use_uid:
                 descriptor_path = '%s/%s' % (sub_path, descriptor.uid)
                 assert descriptor_path in f
@@ -53,7 +55,7 @@ def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_u
                 # make sure the data is equivalent to what comes out of the
                 # databroker
                 hdf_data = np.asarray(f[data_path])
-                broker_data = table[key].dropna().values
+                broker_data = np.asarray(table[key])
                 assert all(hdf_data == broker_data)
                 # make sure the data is sorted in chronological order
                 timestamps_path = "%s/timestamps/%s" % (descriptor_path, key)
