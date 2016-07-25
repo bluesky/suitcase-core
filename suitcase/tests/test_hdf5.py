@@ -16,18 +16,30 @@ def teardown_function(function):
     mds_teardown()
 
 
-def shallow_header_verify(hdf_path, header, fields=None):
+def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_uid=True):
     table = get_table(header)
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
         # supposed to be in
-        assert header.start.uid in f
-        assert dict(header.start) == eval(f[header.start.uid].attrs['start'])
-        assert dict(header.stop) == eval(f[header.start.uid].attrs['stop'])
+        if use_uid:
+            sub_path = header.start.uid
+        else:
+            sub_path = header.start.beamline_id + '_' + str(header.start.scan_id)
+        assert sub_path in f
+        assert dict(header.start) == eval(f[sub_path].attrs['start'])
+        assert dict(header.stop) == eval(f[sub_path].attrs['stop'])
+
         # make sure the descriptors are all in the hdf output file
         for descriptor in header.descriptors:
-            descriptor_path = '%s/%s' % (header.start.uid, descriptor.uid)
-            assert descriptor_path in f
+            if stream_name is not None:
+                if stream_name != descriptor.name:
+                    continue
+            if use_uid:
+                descriptor_path = '%s/%s' % (sub_path, descriptor.uid)
+                assert descriptor_path in f
+            else:
+                descriptor_path = '%s/%s' % (sub_path, descriptor.name)
+                assert descriptor_path in f
             # make sure all keys are in each descriptor
             for key in descriptor.data_keys:
                 data_path = "%s/data/%s" % (descriptor_path, key)
@@ -61,9 +73,6 @@ def test_hdf5_export_single():
     shallow_header_verify(fname.name, hdr)
 
 
-@pytest.mark.xfail(reason='name is not included as a key at descriptor'
-                          'from data created at temperature_ramp.'
-                          'But descriptor name is used for real experiment.')
 def test_hdf5_export_single_no_uid():
     """
     Test the hdf5 export with a single header and
@@ -73,12 +82,9 @@ def test_hdf5_export_single_no_uid():
     hdr = db[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, use_uid=False)
-    shallow_header_verify(fname.name, hdr)
+    shallow_header_verify(fname.name, hdr, use_uid=False)
 
 
-@pytest.mark.xfail(reason='name is not included as a key at descriptor'
-                          'from data created at temperature_ramp.'
-                          'But descriptor name is used for real experiment.')
 def test_hdf5_export_single_stream_name():
     """
     Test the hdf5 export with a single header and
@@ -88,7 +94,7 @@ def test_hdf5_export_single_stream_name():
     hdr = db[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, stream_name='primary')
-    #shallow_header_verify(fname.name, hdr)
+    shallow_header_verify(fname.name, hdr, stream_name='primary')
 
 
 def test_hdf5_export_with_fields_single():
