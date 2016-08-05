@@ -94,8 +94,12 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
                                                 compression='gzip',
                                                 fletcher32=True)
                     data = [e['data'][key] for e in events]
-                    dataset = data_group.create_dataset(
-                        key, data=data, compression='gzip', fletcher32=True)
+                    try:
+                        dataset = data_group.create_dataset(
+                            key, data=data, compression='gzip', fletcher32=True)
+                    except TypeError:
+                        pass
+
                     # Put contents of this data key (source, etc.)
                     # into an attribute on the associated data set.
                     _safe_attrs_assignment(dataset, dict(value))
