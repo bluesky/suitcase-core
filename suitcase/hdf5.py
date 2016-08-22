@@ -7,6 +7,7 @@
 #-------------------------------------------------------------------------
 
 from collections import Mapping
+import numpy as np
 import warnings
 import h5py
 import json
@@ -95,10 +96,18 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
                                                 fletcher32=True)
                     data = [e['data'][key] for e in events]
                     try:
+                        # save numerical data
                         dataset = data_group.create_dataset(
                             key, data=data, compression='gzip', fletcher32=True)
                     except TypeError:
-                        pass
+                        try:
+                            # save data with str type, or list of str
+                            data = np.array(data).astype('|S9')
+                            dataset = data_group.create_dataset(
+                                key, data=data, compression='gzip')
+                        except TypeError:
+                            # ignore other types
+                            print('Dataset {} is not saved, as the data type is {}'.format(key, type(data[0])))
 
                     # Put contents of this data key (source, etc.)
                     # into an attribute on the associated data set.
