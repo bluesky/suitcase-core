@@ -102,7 +102,13 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
                     except TypeError:
                         try:
                             # save data with str type, or list of str
-                            data = np.array(data).astype('|S9')
+                            if type(data[0]) == np.ndarray:
+                                data_len = 1
+                                for v in data[0]:
+                                    data_len = max(data_len, len(v))
+                            else:
+                                data_len = len(data[0])
+                            data = np.array(data).astype('|S'+str(data_len))
                             dataset = data_group.create_dataset(
                                 key, data=data, compression='gzip')
                         except TypeError:
