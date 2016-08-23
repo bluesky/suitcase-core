@@ -56,6 +56,9 @@ def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_u
                 # databroker
                 hdf_data = np.asarray(f[data_path])
                 broker_data = np.asarray(table[key])
+                if type(hdf_data[0]) == np.bytes_:
+                    dlen = len(hdf_data[0])
+                    hdf_data = np.array(hdf_data).astype('str')
                 assert all(hdf_data == broker_data)
                 # make sure the data is sorted in chronological order
                 timestamps_path = "%s/timestamps/%s" % (descriptor_path, key)
