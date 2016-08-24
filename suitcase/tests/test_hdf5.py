@@ -56,7 +56,12 @@ def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_u
                 # databroker
                 hdf_data = np.asarray(f[data_path])
                 broker_data = np.asarray(table[key])
-                assert all(hdf_data == broker_data)
+                if isinstance(hdf_data[0], np.bytes_):
+                    hdf_data = np.array(hdf_data).astype('str')
+                if len(hdf_data.shape) == 2:
+                    if isinstance(hdf_data[0,0], np.bytes_):
+                        hdf_data = np.array(hdf_data).astype('str')
+                np.testing.assert_array_equal(hdf_data, broker_data)
                 # make sure the data is sorted in chronological order
                 timestamps_path = "%s/timestamps/%s" % (descriptor_path, key)
                 timestamps = np.asarray(f[timestamps_path])
@@ -116,7 +121,9 @@ def test_filter_fields():
     hdr = db[-1]
     unwanted_fields = ['point_det']
     out = hdf5.filter_fields(hdr, unwanted_fields)
-    assert len(out)==1  #original list is ('point_det', 'Tsam'), only ('Tsam') left after filtering out
+    #original list is ('point_det', 'boolean_det', 'ccd_det_info', 'Tsam'),
+    # only ('boolean_det', 'ccd_det_info', 'Tsam') left after filtering out
+    assert len(out)==3
 
 
 def test_hdf5_export_list():
