@@ -96,25 +96,23 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
                                                 fletcher32=True)
                     data = [e['data'][key] for e in events]
                     data = np.array(data)
-                    try:
+                    if data.dtype.kind in ['S', 'U']:
+                        # save data with str type, or list of str
+                        if data.ndim == 1:
+                            data_len = len(data[0])
+                        elif data.ndim == 2:
+                            data_len = 1
+                            for v in data[0]:
+                                data_len = max(data_len, len(v))
+                        else:
+                            raise('Array of str with ndim >= 3 can not be saved.')
+                        data = np.array(data).astype('|S'+str(data_len))
+                        dataset = data_group.create_dataset(
+                            key, data=data, compression='gzip')
+                    else:
                         # save numerical data
                         dataset = data_group.create_dataset(
                             key, data=data, compression='gzip', fletcher32=True)
-                    except TypeError:
-                        try:
-                            # save data with str type, or list of str
-                            if len(data.shape) == 1:
-                                data_len = len(data[0])
-                            else:
-                                data_len = 1
-                                for v in data[0]:
-                                    data_len = max(data_len, len(v))
-                            data = np.array(data).astype('|S'+str(data_len))
-                            dataset = data_group.create_dataset(
-                                key, data=data, compression='gzip')
-                        except TypeError:
-                            # ignore other types
-                            print('Dataset {} is not saved, as the data type is {}'.format(key, data.dtype))
 
                     # Put contents of this data key (source, etc.)
                     # into an attribute on the associated data set.
