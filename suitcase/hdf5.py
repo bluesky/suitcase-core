@@ -96,23 +96,27 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
                                                 fletcher32=True)
                     data = [e['data'][key] for e in events]
                     data = np.array(data)
-                    if data.dtype.kind in ['S', 'U']:
-                        # save data with str type, or list of str
-                        if data.ndim == 1:
-                            data_len = len(data[0])
-                        elif data.ndim == 2:
+
+                    if value['dtype'].lower() == 'string':  # 1D of string
+                        data_len = len(data[0])
+                        data = data.astype('|S'+str(data_len))
+                        dataset = data_group.create_dataset(
+                            key, data=data, compression='gzip')
+                    elif data.dtype.kind in ['S', 'U']:
+                        # 2D of string, we can't tell from dytpe, they are shown as array only.
+                        if data.ndim == 2:
                             data_len = 1
                             for v in data[0]:
                                 data_len = max(data_len, len(v))
+                            data = data.astype('|S'+str(data_len))
+                            dataset = data_group.create_dataset(
+                                key, data=data, compression='gzip')
                         else:
                             raise('Array of str with ndim >= 3 can not be saved.')
-                        data = np.array(data).astype('|S'+str(data_len))
+                    else:  # save numerical data
                         dataset = data_group.create_dataset(
-                            key, data=data, compression='gzip')
-                    else:
-                        # save numerical data
-                        dataset = data_group.create_dataset(
-                            key, data=data, compression='gzip', fletcher32=True)
+                            key, data=data,
+                            compression='gzip', fletcher32=True)
 
                     # Put contents of this data key (source, etc.)
                     # into an attribute on the associated data set.
