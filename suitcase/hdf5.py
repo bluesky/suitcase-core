@@ -11,14 +11,13 @@ import numpy as np
 import warnings
 import h5py
 import json
-from metadatastore.commands import get_events_generator
+from databroker import db
 from databroker.databroker import fill_event
 from databroker.core import Header
 
 
-__version__ = "0.2.2"
-
-def export(headers, filename, stream_name=None, fields=None, timestamps=True, use_uid=True):
+def export(headers, filename, mds=db.mds,
+           stream_name=None, fields=None, timestamps=True, use_uid=True):
     """
     Create hdf5 file to preserve the structure of databroker.
 
@@ -28,6 +27,8 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
+    mds : db.mds, optional
+        metadatastore object
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
@@ -76,7 +77,7 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
 
                 _safe_attrs_assignment(desc_group, descriptor)
 
-                events = list(get_events_generator(descriptor=descriptor))
+                events = list(mds.get_events_generator(descriptor))
                 event_times = [e['time'] for e in events]
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)

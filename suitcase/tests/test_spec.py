@@ -7,10 +7,10 @@ import tempfile
 
 import event_model
 import pytest
-from metadatastore.commands import (insert_run_start, insert_descriptor,
-                                    insert_event, insert_run_stop,
-                                    get_events_generator)
-from metadatastore.test.utils import mds_setup, mds_teardown
+from metadatastore.core import (insert_run_start, insert_descriptor,
+                                insert_event, insert_run_stop,
+                                get_events_generator)
+from .utils import mds_setup, mds_teardown
 
 from databroker import db
 from databroker.core import Header
