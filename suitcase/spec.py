@@ -38,12 +38,26 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-try:
-    import metadatastore.commands as mdsc
-except ImportError:
-    logger.error("metadatastore not available. Some functionality is disabled")
-    mdsc = None
 
+# try:
+#     import metadatastore.commands as mdsc
+# except ImportError:
+#     logger.error("metadatastore not available. Some functionality is disabled")
+#     mdsc = None
+
+
+try:
+    from databroker.broker import Broker
+    import metadatastore.conf
+    mds_config = metadatastore.conf.load_configuration(
+        'metadatastore', 'MDS', ['host', 'database', 'port', 'timezone'])
+    from metadatastore.mds import MDS
+except (KeyError, ImportError) as exc:
+    warnings.warn("No default DataBroker object will be created because "
+                  "the necessary configuration was not found: %s" % exc)
+    mdsc = None
+else:
+    db = Broker(MDS(mds_config), fs=None)
 
 # The way that SPEC time is formatted
 SPEC_TIME_FORMAT = '%a %b %d %H:%M:%S %Y'
@@ -409,7 +423,7 @@ def _md5(iterable):
 ###############################################################################
 
 @singledispatch
-def spec_to_document(specfile, scan_ids=None, validate=False,
+def spec_to_document(specfile, mdsc=db.mds, scan_ids=None, validate=False,
                      check_in_broker=False):
     """Convert one or more scans in a specfile into documents
 
@@ -455,7 +469,7 @@ def spec_to_document(specfile, scan_ids=None, validate=False,
 # value out of string_types which is `basestring,` on PY2 and `str,` on PY3
 @spec_to_document.register(six.string_types[0])
 @spec_to_document.register(six.text_type)
-def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+def _(specfile, mdsc=db.mds, scan_ids=None, validate=False, check_in_broker=False):
     """
     Handle the case when type(specfile) == str
     """
@@ -467,7 +481,7 @@ def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
 
 
 @spec_to_document.register(Specfile)
-def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+def _(specfile, mdsc=db.mds, scan_ids=None, validate=False, check_in_broker=False):
     """
     Handle the case when type(specfile) == Specfile
     """
@@ -492,16 +506,16 @@ def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
 
 
 @spec_to_document.register(Specscan)
-def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+def _(specfile, mdsc=db.mds, scan_ids=None, validate=False, check_in_broker=False):
     """
     Handle the case when type(specfile) == Specscan
     """
     for document_name, document in specscan_to_document_stream(
-            specfile, validate=validate, check_in_broker=check_in_broker):
+            specfile, mdsc=mdsc, validate=validate, check_in_broker=check_in_broker):
         yield document_name, document
 
 
-def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
+def specscan_to_document_stream(scan, mdsc=db.mds, validate=False, check_in_broker=False):
     """
     Turn a single spec scan into a document stream
 
@@ -594,7 +608,7 @@ _find_map = {
 }
 
 
-def _check_and_update_document(doc_name, doc_dict):
+def _check_and_update_document(doc_name, doc_dict, mdsc=db.mds):
     """
     Check to see if the document already exists in metadatastore and
 
@@ -662,7 +676,7 @@ def _check_and_update_document(doc_name, doc_dict):
     return doc_copy
 
 
-def to_run_start(specscan, validate=False, check_in_broker=False, **md):
+def to_run_start(specscan, mdsc=db.mds, validate=False, check_in_broker=False, **md):
     """Convert a Specscan object into a RunStart document
 
     Parameters
@@ -710,12 +724,12 @@ def to_run_start(specscan, validate=False, check_in_broker=False, **md):
         _validate(event_model.DocumentNames.start, run_start_dict)
     if check_in_broker:
         run_start_dict = _check_and_update_document(
-            event_model.DocumentNames.start, run_start_dict)
+            event_model.DocumentNames.start, run_start_dict, mdsc=mdsc)
     yield event_model.DocumentNames.start, doct.Document('RunStart',
                                                          run_start_dict)
 
 
-def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
+def to_baseline(specscan, start_uid, mdsc=db.mds, validate=False, check_in_broker=False):
     """Convert a Specscan object into a baseline Descriptor and Event
 
     Parameters
@@ -778,7 +792,7 @@ def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
         _validate(event_model.DocumentNames.descriptor, descriptor)
     if check_in_broker:
         descriptor = _check_and_update_document(
-            event_model.DocumentNames.descriptor, descriptor)
+            event_model.DocumentNames.descriptor, descriptor, mdsc=mdsc)
     yield (event_model.DocumentNames.descriptor,
            doct.Document('EventDescriptor', descriptor))
     event = dict(descriptor=descriptor['uid'], seq_num=0, time=timestamp,
@@ -787,11 +801,11 @@ def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
         _validate(event_model.DocumentNames.event, event)
     if check_in_broker:
         event = _check_and_update_document(
-            event_model.DocumentNames.event, event)
+            event_model.DocumentNames.event, event, mdsc=mdsc)
     yield event_model.DocumentNames.event, doct.Document('Event', event)
 
 
-def to_events(specscan, start_uid, validate=False, check_in_broker=False):
+def to_events(specscan, start_uid, mdsc=db.mds, validate=False, check_in_broker=False):
     """Convert a Specscan object into a Descriptor and Event documents
 
     Parameters
@@ -828,7 +842,7 @@ def to_events(specscan, start_uid, validate=False, check_in_broker=False):
         _validate(event_model.DocumentNames.descriptor, descriptor)
     if check_in_broker:
         descriptor = _check_and_update_document(
-            event_model.DocumentNames.descriptor, descriptor)
+            event_model.DocumentNames.descriptor, descriptor, mdsc=mdsc)
     yield (event_model.DocumentNames.descriptor,
            doct.Document('EventDescriptor', descriptor))
     timestamps = {col: timestamp for col in specscan.col_names}
@@ -841,12 +855,12 @@ def to_events(specscan, start_uid, validate=False, check_in_broker=False):
             _validate(event_model.DocumentNames.descriptor, descriptor)
         if check_in_broker:
             event = _check_and_update_document(
-                event_model.DocumentNames.event, event)
+                event_model.DocumentNames.event, event, mdsc=mdsc)
         yield event_model.DocumentNames.event, doct.Document('Event',
                                                              event)
 
 
-def to_stop(specscan, start_uid, validate=False, check_in_broker=False, **md):
+def to_stop(specscan, start_uid, mdsc=db.mds, validate=False, check_in_broker=False, **md):
     """Convert a Specscan object into a Stop document
 
     Parameters
@@ -898,7 +912,7 @@ def to_stop(specscan, start_uid, validate=False, check_in_broker=False, **md):
     if validate:
         _validate(event_model.DocumentNames.stop, stop)
     if check_in_broker:
-        stop = _check_and_update_document(event_model.DocumentNames.stop, stop)
+        stop = _check_and_update_document(event_model.DocumentNames.stop, stop, mdsc=mdsc)
     yield event_model.DocumentNames.stop, doct.Document('RunStop', stop)
 
 
@@ -1301,7 +1315,7 @@ class DocumentToSpec(CallbackBase):
 # Code for inserting documents into metadatastore
 # ##########################################################################
 _inserted = namedtuple('inserted', ['doc_name', 'uid', 'inserted'])
-def insert_specscan_into_broker(specscan, validate=False,
+def insert_specscan_into_broker(specscan, mdsc=db.mds, validate=False,
                                 check_in_broker=True):
     """
     Insert a single spec scan into the databroker
@@ -1329,7 +1343,7 @@ def insert_specscan_into_broker(specscan, validate=False,
     if mdsc is None:
         raise RuntimeError("metadatastore is not available. This function is "
                            "not usable.")
-    doc_gen = specscan_to_document_stream(specscan, validate=validate,
+    doc_gen = specscan_to_document_stream(specscan, mdsc=mdsc, validate=validate,
                                           check_in_broker=check_in_broker)
     uids = []
     for doc_name, doc in doc_gen:
@@ -1354,7 +1368,7 @@ def insert_specscan_into_broker(specscan, validate=False,
     return uids
 
 
-def insert_specfile_into_broker(specfile, validate=False,
+def insert_specfile_into_broker(specfile, mdsc=db.mds, validate=False,
                                 check_in_broker=True):
 
     """
@@ -1397,7 +1411,7 @@ def insert_specfile_into_broker(specfile, validate=False,
     failed = []
     for scan in specfile:
         try:
-            uids = insert_specscan_into_broker(scan, validate=validate,
+            uids = insert_specscan_into_broker(scan, mdsc=mdsc, validate=validate,
                                                check_in_broker=check_in_broker)
             suceeded.append((scan, uids))
         except NotImplementedError as e:

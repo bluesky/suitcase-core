@@ -1,6 +1,7 @@
 import uuid
 import pytest
 from metadatastore.mds import MDS
+from databroker.broker import Broker
 import os
 
 AUTH = os.environ.get('MDSTESTWITHAUTH', False)
@@ -16,8 +17,10 @@ def mds_all(request):
                      port=27017, timezone='US/Eastern',
                      mongo_user='tom',
                      mongo_pwd='jerry')
-    version_v = request.param
-    mds = MDS(test_conf, version_v, auth=AUTH)
+    #version_v = request.param
+    mds = MDS(test_conf, auth=AUTH)
+
+    db = Broker(mds, fs=None)
 
     def delete_dm():
         print("DROPPING DB")
@@ -25,4 +28,4 @@ def mds_all(request):
 
     request.addfinalizer(delete_dm)
 
-    return mds
+    return db.mds
