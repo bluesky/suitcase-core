@@ -11,12 +11,11 @@ import numpy as np
 import warnings
 import h5py
 import json
-from databroker import db
 from databroker.databroker import fill_event
 from databroker.core import Header
 
 
-def export(headers, filename, mds=db.mds,
+def export(headers, filename, mds,
            stream_name=None, fields=None, timestamps=True, use_uid=True):
     """
     Create hdf5 file to preserve the structure of databroker.
@@ -27,8 +26,8 @@ def export(headers, filename, mds=db.mds,
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
-    mds : db.mds, optional
-        metadatastore object
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
