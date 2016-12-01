@@ -112,7 +112,7 @@ def export(headers, filename, mds,
                             dataset = data_group.create_dataset(
                                 key, data=data, compression='gzip')
                         else:
-                            raise('Array of str with ndim >= 3 can not be saved.')
+                            raise ValueError('Array of str with ndim >= 3 can not be saved.')
                     else:  # save numerical data
                         dataset = data_group.create_dataset(
                             key, data=data,
