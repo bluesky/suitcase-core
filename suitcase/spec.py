@@ -38,12 +38,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-try:
-    import metadatastore.commands as mdsc
-except ImportError:
-    logger.error("metadatastore not available. Some functionality is disabled")
-    mdsc = None
-
 
 # The way that SPEC time is formatted
 SPEC_TIME_FORMAT = '%a %b %d %H:%M:%S %Y'
@@ -409,7 +403,7 @@ def _md5(iterable):
 ###############################################################################
 
 @singledispatch
-def spec_to_document(specfile, scan_ids=None, validate=False,
+def spec_to_document(specfile, mds, scan_ids=None, validate=False,
                      check_in_broker=False):
     """Convert one or more scans in a specfile into documents
 
@@ -417,6 +411,8 @@ def spec_to_document(specfile, scan_ids=None, validate=False,
     ----------
     specfile : str
         The path to the spec file that should be loaded
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     scan_ids : int or iterable, optional
         The scan ids that should be converted into documents
     validate : bool, optional
@@ -455,19 +451,19 @@ def spec_to_document(specfile, scan_ids=None, validate=False,
 # value out of string_types which is `basestring,` on PY2 and `str,` on PY3
 @spec_to_document.register(six.string_types[0])
 @spec_to_document.register(six.text_type)
-def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+def _(specfile, mds, scan_ids=None, validate=False, check_in_broker=False):
     """
     Handle the case when type(specfile) == str
     """
     specfile = Specfile(filename=specfile)
     for document_name, document in spec_to_document(
-            specfile, scan_ids=scan_ids, validate=validate,
+            specfile, mds, scan_ids=scan_ids, validate=validate,
             check_in_broker=check_in_broker):
       yield document_name, document
 
 
 @spec_to_document.register(Specfile)
-def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+def _(specfile, mds, scan_ids=None, validate=False, check_in_broker=False):
     """
     Handle the case when type(specfile) == Specfile
     """
@@ -484,7 +480,7 @@ def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
     for scan in scans_to_process:
         try:
             for document_name, document in spec_to_document(
-                    scan, scan_ids=scan_ids, validate=validate,
+                    scan, mds, scan_ids=scan_ids, validate=validate,
                     check_in_broker=check_in_broker):
                 yield document_name, document
         except NotImplementedError as e:
@@ -492,22 +488,24 @@ def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
 
 
 @spec_to_document.register(Specscan)
-def _(specfile, scan_ids=None, validate=False, check_in_broker=False):
+def _(specfile, mds, scan_ids=None, validate=False, check_in_broker=False):
     """
     Handle the case when type(specfile) == Specscan
     """
     for document_name, document in specscan_to_document_stream(
-            specfile, validate=validate, check_in_broker=check_in_broker):
+            specfile, mds=mds, validate=validate, check_in_broker=check_in_broker):
         yield document_name, document
 
 
-def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
+def specscan_to_document_stream(scan, mds, validate=False, check_in_broker=False):
     """
     Turn a single spec scan into a document stream
 
     Parameters
     ----------
     scan : Specscan
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     validate : bool
         True/False: Do/Don't validate the documents against their json schema
                     as defined in `event_model`
@@ -525,7 +523,7 @@ def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
         metadatastore.  You will need to call find_* yourself to determine
         if it does exist
     """
-    if mdsc is None and check_in_broker:
+    if mds is None and check_in_broker:
         raise NotImplementedError(
             "It is not possible to use the `check_in_broker=True` unless you "
             "have metadatastore installed. Please re-run this function with "
@@ -533,19 +531,19 @@ def specscan_to_document_stream(scan, validate=False, check_in_broker=False):
         )
     # do the conversion!
     kw = {'validate': validate, 'check_in_broker': check_in_broker}
-    document_name, document = next(to_run_start(scan, **kw))
+    document_name, document = next(to_run_start(scan, mds, **kw))
     start_uid = document['uid']
     # yield the start document
     yield document_name, document
     # yield the baseline descriptor and its event
-    for document_name, document in to_baseline(scan, start_uid, **kw):
+    for document_name, document in to_baseline(scan, start_uid, mds, **kw):
         yield document_name, document
-    for document_name, document in to_events(scan, start_uid, **kw):
+    for document_name, document in to_events(scan, start_uid, mds, **kw):
         # yield the descriptor and events
         yield document_name, document
     # make sure the run was finished before it was stopped
     # yield the stop document
-    gen = to_stop(scan, start_uid, **kw)
+    gen = to_stop(scan, start_uid, mds, **kw)
     document_name, document = next(gen)
     yield document_name, document
 
@@ -594,7 +592,7 @@ _find_map = {
 }
 
 
-def _check_and_update_document(doc_name, doc_dict):
+def _check_and_update_document(doc_name, doc_dict, mds):
     """
     Check to see if the document already exists in metadatastore and
 
@@ -604,6 +602,8 @@ def _check_and_update_document(doc_name, doc_dict):
         One of the values in the event_model.DocumentNames enum
     doc_dict : dict
         The dictionary that corresponds to a document
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
 
     Returns
     -------
@@ -611,7 +611,7 @@ def _check_and_update_document(doc_name, doc_dict):
         A dictionary that contains all the keys that a document that came out
         of bluesky or metadatastore would contain.
     """
-    find_func = getattr(mdsc, _find_map[doc_name])
+    find_func = getattr(mds, _find_map[doc_name])
     if doc_name == event_model.DocumentNames.start:
         find_kwargs = {'hashed_scandata': doc_dict['hashed_scandata']}
     elif (doc_name == event_model.DocumentNames.descriptor or
@@ -662,12 +662,14 @@ def _check_and_update_document(doc_name, doc_dict):
     return doc_copy
 
 
-def to_run_start(specscan, validate=False, check_in_broker=False, **md):
+def to_run_start(specscan, mds, validate=False, check_in_broker=False, **md):
     """Convert a Specscan object into a RunStart document
 
     Parameters
     ----------
     specscan : suitcase.spec.Specscan
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     validate : bool, optional
         Whether or not to use jsonschema validation on the document that is
         being created. Defaults to False
@@ -710,12 +712,12 @@ def to_run_start(specscan, validate=False, check_in_broker=False, **md):
         _validate(event_model.DocumentNames.start, run_start_dict)
     if check_in_broker:
         run_start_dict = _check_and_update_document(
-            event_model.DocumentNames.start, run_start_dict)
+            event_model.DocumentNames.start, run_start_dict, mds=mds)
     yield event_model.DocumentNames.start, doct.Document('RunStart',
                                                          run_start_dict)
 
 
-def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
+def to_baseline(specscan, start_uid, mds, validate=False, check_in_broker=False):
     """Convert a Specscan object into a baseline Descriptor and Event
 
     Parameters
@@ -724,6 +726,8 @@ def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
     start_uid : str
         The uid of the RunStart document that these baseline documents should
         be associated with.
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     validate : bool, optional
         Whether or not to use jsonschema validation on the document that is
         being created. Defaults to False
@@ -778,7 +782,7 @@ def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
         _validate(event_model.DocumentNames.descriptor, descriptor)
     if check_in_broker:
         descriptor = _check_and_update_document(
-            event_model.DocumentNames.descriptor, descriptor)
+            event_model.DocumentNames.descriptor, descriptor, mds=mds)
     yield (event_model.DocumentNames.descriptor,
            doct.Document('EventDescriptor', descriptor))
     event = dict(descriptor=descriptor['uid'], seq_num=0, time=timestamp,
@@ -787,11 +791,11 @@ def to_baseline(specscan, start_uid, validate=False, check_in_broker=False):
         _validate(event_model.DocumentNames.event, event)
     if check_in_broker:
         event = _check_and_update_document(
-            event_model.DocumentNames.event, event)
+            event_model.DocumentNames.event, event, mds=mds)
     yield event_model.DocumentNames.event, doct.Document('Event', event)
 
 
-def to_events(specscan, start_uid, validate=False, check_in_broker=False):
+def to_events(specscan, start_uid, mds, validate=False, check_in_broker=False):
     """Convert a Specscan object into a Descriptor and Event documents
 
     Parameters
@@ -800,6 +804,8 @@ def to_events(specscan, start_uid, validate=False, check_in_broker=False):
     start_uid : str
         The uid of the RunStart document that these baseline document should be
         associated with.
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     validate : bool, optional
         Whether or not to use jsonschema validation on the document that is
         being created. Defaults to False
@@ -828,7 +834,7 @@ def to_events(specscan, start_uid, validate=False, check_in_broker=False):
         _validate(event_model.DocumentNames.descriptor, descriptor)
     if check_in_broker:
         descriptor = _check_and_update_document(
-            event_model.DocumentNames.descriptor, descriptor)
+            event_model.DocumentNames.descriptor, descriptor, mds=mds)
     yield (event_model.DocumentNames.descriptor,
            doct.Document('EventDescriptor', descriptor))
     timestamps = {col: timestamp for col in specscan.col_names}
@@ -841,12 +847,12 @@ def to_events(specscan, start_uid, validate=False, check_in_broker=False):
             _validate(event_model.DocumentNames.descriptor, descriptor)
         if check_in_broker:
             event = _check_and_update_document(
-                event_model.DocumentNames.event, event)
+                event_model.DocumentNames.event, event, mds=mds)
         yield event_model.DocumentNames.event, doct.Document('Event',
                                                              event)
 
 
-def to_stop(specscan, start_uid, validate=False, check_in_broker=False, **md):
+def to_stop(specscan, start_uid, mds, validate=False, check_in_broker=False, **md):
     """Convert a Specscan object into a Stop document
 
     Parameters
@@ -855,6 +861,8 @@ def to_stop(specscan, start_uid, validate=False, check_in_broker=False, **md):
     start_uid : str
         The uid of the RunStart document that this Stop document should
         be associated with.
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     validate : bool, optional
         Whether or not to use jsonschema validation on the document that is
         being created. Defaults to False
@@ -898,7 +906,7 @@ def to_stop(specscan, start_uid, validate=False, check_in_broker=False, **md):
     if validate:
         _validate(event_model.DocumentNames.stop, stop)
     if check_in_broker:
-        stop = _check_and_update_document(event_model.DocumentNames.stop, stop)
+        stop = _check_and_update_document(event_model.DocumentNames.stop, stop, mds=mds)
     yield event_model.DocumentNames.stop, doct.Document('RunStop', stop)
 
 
@@ -1301,7 +1309,7 @@ class DocumentToSpec(CallbackBase):
 # Code for inserting documents into metadatastore
 # ##########################################################################
 _inserted = namedtuple('inserted', ['doc_name', 'uid', 'inserted'])
-def insert_specscan_into_broker(specscan, validate=False,
+def insert_specscan_into_broker(specscan, mds, validate=False,
                                 check_in_broker=True):
     """
     Insert a single spec scan into the databroker
@@ -1310,6 +1318,8 @@ def insert_specscan_into_broker(specscan, validate=False,
     ----------
     specscan : Specscan
         The Specscan object to insert into the databroker
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     validate : bool, optional
         Defaults to False.
         True/False: Do/Don't validate the document dict against the json
@@ -1326,15 +1336,15 @@ def insert_specscan_into_broker(specscan, validate=False,
         List of `_inserted` namedtuples that provide some information regarding
         which documents were inserted and which already existed.
     """
-    if mdsc is None:
+    if mds is None:
         raise RuntimeError("metadatastore is not available. This function is "
                            "not usable.")
-    doc_gen = specscan_to_document_stream(specscan, validate=validate,
+    doc_gen = specscan_to_document_stream(specscan, mds=mds, validate=validate,
                                           check_in_broker=check_in_broker)
     uids = []
     for doc_name, doc in doc_gen:
         # insert the document
-        find_func = getattr(mdsc, _find_map[doc_name])
+        find_func = getattr(mds, _find_map[doc_name])
         documents = list(find_func(uid=doc.uid))
         inserted = False
         if not documents:
@@ -1343,7 +1353,7 @@ def insert_specscan_into_broker(specscan, validate=False,
             # metadatastore does not know how to handle the _name
             doc_dict = dict(doc)
             doc_dict.pop('_name', None)
-            mdsc.insert(doc_name.name, doc_dict)
+            mds.insert(doc_name.name, doc_dict)
             inserted = True
         else:
             # there is only one document.  It is not possible for mds to return
@@ -1354,7 +1364,7 @@ def insert_specscan_into_broker(specscan, validate=False,
     return uids
 
 
-def insert_specfile_into_broker(specfile, validate=False,
+def insert_specfile_into_broker(specfile, mds, validate=False,
                                 check_in_broker=True):
 
     """
@@ -1367,6 +1377,8 @@ def insert_specfile_into_broker(specfile, validate=False,
     ----------
     specfile : Specfile
         The Specfile object to insert into the databroker
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     validate : bool
         Defaults to False.
         True/False: Do/Don't validate the document dict against the json
@@ -1397,7 +1409,7 @@ def insert_specfile_into_broker(specfile, validate=False,
     failed = []
     for scan in specfile:
         try:
-            uids = insert_specscan_into_broker(scan, validate=validate,
+            uids = insert_specscan_into_broker(scan, mds=mds, validate=validate,
                                                check_in_broker=check_in_broker)
             suceeded.append((scan, uids))
         except NotImplementedError as e:

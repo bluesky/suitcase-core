@@ -7,12 +7,7 @@ import tempfile
 
 import event_model
 import pytest
-from metadatastore.commands import (insert_run_start, insert_descriptor,
-                                    insert_event, insert_run_stop,
-                                    get_events_generator)
-from metadatastore.test.utils import mds_setup, mds_teardown
-
-from databroker import db
+from databroker.broker import Broker
 from databroker.core import Header
 from suitcase import spec
 
@@ -20,14 +15,6 @@ stream_handler = logging.StreamHandler()
 stream_handler.setLevel(logging.DEBUG)
 spec.logger.setLevel(logging.DEBUG)
 spec.logger.addHandler(stream_handler)
-
-
-def setup_function(function):
-    mds_setup()
-
-
-def teardown_function(function):
-    mds_teardown()
 
 
 @pytest.fixture(scope='module')
@@ -86,7 +73,6 @@ def test_spec_attrs_smoke(sf):
     str(scan)
 
 
-
 @pytest.mark.xfail(reason='Testing `spec_to_document` with bad input')
 def test_spec_to_document_bad_input():
     list(spec.spec_to_document(2))
@@ -99,16 +85,19 @@ def test_spec_to_document_bad_input():
          spec.Specfile(spec_filename()),
          spec.Specfile(spec_filename())[1]],
         [1, [1, 2], None]))
-def test_spec_to_document(sf, scan_ids):
+def test_spec_to_document(sf, mds_all, scan_ids):
     map = {
-        'start': insert_run_start,
-        'stop': insert_run_stop,
-        'descriptor': insert_descriptor,
-        'event': insert_event
+        'start': mds_all.insert_run_start,
+        'stop': mds_all.insert_run_stop,
+        'descriptor': mds_all.insert_descriptor,
+        'event': mds_all.insert_event
     }
     start_uids = list()
+
+    db = Broker(mds_all, fs=None)
+
     for document_name, document in spec.spec_to_document(
-            sf, scan_ids=scan_ids, validate=True):
+            sf, mds_all, scan_ids=scan_ids, validate=True):
         document = dict(document)
         del document['_name']
         if not isinstance(document_name, str):
@@ -139,7 +128,7 @@ def test_spec_to_document(sf, scan_ids):
         sf = spec.Specfile(sf)
     for hdr, specscan in zip(hdrs, sf):
         for descriptor in hdr.descriptors:
-            ev = list(get_events_generator(descriptor))
+            ev = list(mds_all.get_events_generator(descriptor))
             if descriptor.get('name') == 'baseline':
                 # we better only have one baseline event
                 assert len(ev) == 1
@@ -162,11 +151,11 @@ def test_lt(spec_filename):
         assert s1 < s2
 
 
-def _round_trip(specfile_object, new_specfile_name=None):
+def _round_trip(specfile_object, mds_all, new_specfile_name=None):
     if new_specfile_name is None:
         new_specfile_name = tempfile.NamedTemporaryFile().name
 
-    document_stream = spec.spec_to_document(specfile_object)
+    document_stream = spec.spec_to_document(specfile_object, mds_all)
     cb = spec.DocumentToSpec(new_specfile_name)
     for doc_name, doc in document_stream:
         # RunEngine.subscribe does the translation of 'start' <->
@@ -179,21 +168,21 @@ def _round_trip(specfile_object, new_specfile_name=None):
     return sf1
 
 
-def test_round_trip_from_specfile(spec_filename):
+def test_round_trip_from_specfile(spec_filename, mds_all):
     sf = spec.Specfile(spec_filename)
-    sf1 = _round_trip(sf)
+    sf1 = _round_trip(sf, mds_all)
 
     # this will probably fail because we cannot convert *all* spec scan types.
     with pytest.raises(AssertionError):
         assert len(sf) == len(sf1)
 
     # round trip again
-    sf2 = _round_trip(sf1)
+    sf2 = _round_trip(sf1, mds_all)
     assert len(sf1) == len(sf2)
     assert len(sf2) > 0
 
 
-def test_round_trip_from_run_engine():
+def test_round_trip_from_run_engine(mds_all):
     try:
         import bluesky
     except ImportError as ie:
@@ -219,7 +208,7 @@ def test_round_trip_from_run_engine():
     RE(a2scan(motor, -1, 1, motor1, -1, 1, 10))
 
     sf = spec.Specfile(fname)
-    sf1 = _round_trip(sf)
+    sf1 = _round_trip(sf, mds_all)
 
     # a2scan is not round trippable
     num_unconvertable_scans = 1
@@ -227,31 +216,31 @@ def test_round_trip_from_run_engine():
     assert len(sf) == (len(sf1) + num_unconvertable_scans)
 
 
-def test_insert_specscan(spec_filename):
+def test_insert_specscan(spec_filename, mds_all):
     specfile = spec.Specfile(spec_filename)
     scan = next(iter(specfile))
-    spec.insert_specscan_into_broker(scan)
+    spec.insert_specscan_into_broker(scan, mds=mds_all)
 
 
-def test_insert_specfile(spec_filename):
+def test_insert_specfile(spec_filename, mds_all):
     specfile = spec.Specfile(spec_filename)
     # Can only insert the spec scans whose type is in the _BLUESKY_PLAN_NAMES
     # list
     scans_expected_to_fail = [scan for scan in specfile if scan.scan_command
                               not in spec._BLUESKY_PLAN_NAMES]
-    suceeded, failed = spec.insert_specfile_into_broker(specfile)
+    suceeded, failed = spec.insert_specfile_into_broker(specfile, mds=mds_all)
     assert len(scans_expected_to_fail) == len(failed)
 
     # smoketest the format output
     spec.summarize_insertion(suceeded, failed)
 
 
-def test_double_insert_specscan(spec_filename):
+def test_double_insert_specscan(spec_filename, mds_all):
     specfile = spec.Specfile(spec_filename)
     scan = next(iter(specfile))
-    uids = spec.insert_specscan_into_broker(scan)
+    uids = spec.insert_specscan_into_broker(scan, mds=mds_all)
     assert sum([uid[2] for uid in uids]) == len(uids)
-    uids = spec.insert_specscan_into_broker(scan)
+    uids = spec.insert_specscan_into_broker(scan, mds=mds_all)
     assert sum([uid[2] for uid in uids]) == 0
 
 

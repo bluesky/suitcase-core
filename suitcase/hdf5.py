@@ -11,14 +11,12 @@ import numpy as np
 import warnings
 import h5py
 import json
-from metadatastore.commands import get_events_generator
 from databroker.databroker import fill_event
 from databroker.core import Header
 
 
-__version__ = "0.2.2"
-
-def export(headers, filename, stream_name=None, fields=None, timestamps=True, use_uid=True):
+def export(headers, filename, mds,
+           stream_name=None, fields=None, timestamps=True, use_uid=True):
     """
     Create hdf5 file to preserve the structure of databroker.
 
@@ -28,6 +26,8 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
+    mds : metadatastore object
+        metadatastore object or alike, like db.mds from databroker
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
@@ -76,7 +76,7 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
 
                 _safe_attrs_assignment(desc_group, descriptor)
 
-                events = list(get_events_generator(descriptor=descriptor))
+                events = list(mds.get_events_generator(descriptor))
                 event_times = [e['time'] for e in events]
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)
@@ -96,25 +96,27 @@ def export(headers, filename, stream_name=None, fields=None, timestamps=True, us
                                                 fletcher32=True)
                     data = [e['data'][key] for e in events]
                     data = np.array(data)
-                    try:
-                        # save numerical data
+
+                    if value['dtype'].lower() == 'string':  # 1D of string
+                        data_len = len(data[0])
+                        data = data.astype('|S'+str(data_len))
                         dataset = data_group.create_dataset(
-                            key, data=data, compression='gzip', fletcher32=True)
-                    except TypeError:
-                        try:
-                            # save data with str type, or list of str
-                            if len(data.shape) == 1:
-                                data_len = len(data[0])
-                            else:
-                                data_len = 1
-                                for v in data[0]:
-                                    data_len = max(data_len, len(v))
-                            data = np.array(data).astype('|S'+str(data_len))
+                            key, data=data, compression='gzip')
+                    elif data.dtype.kind in ['S', 'U']:
+                        # 2D of string, we can't tell from dytpe, they are shown as array only.
+                        if data.ndim == 2:
+                            data_len = 1
+                            for v in data[0]:
+                                data_len = max(data_len, len(v))
+                            data = data.astype('|S'+str(data_len))
                             dataset = data_group.create_dataset(
                                 key, data=data, compression='gzip')
-                        except TypeError:
-                            # ignore other types
-                            print('Dataset {} is not saved, as the data type is {}'.format(key, data.dtype))
+                        else:
+                            raise ValueError('Array of str with ndim >= 3 can not be saved.')
+                    else:  # save numerical data
+                        dataset = data_group.create_dataset(
+                            key, data=data,
+                            compression='gzip', fletcher32=True)
 
                     # Put contents of this data key (source, etc.)
                     # into an attribute on the associated data set.

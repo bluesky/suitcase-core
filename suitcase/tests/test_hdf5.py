@@ -1,7 +1,5 @@
-from metadatastore.test.utils import mds_setup, mds_teardown
 from metadatastore.examples.sample_data import temperature_ramp
-from metadatastore.commands import get_events_table
-from databroker import db, get_table
+from databroker import Broker
 from suitcase import hdf5
 import tempfile
 import h5py
@@ -9,15 +7,7 @@ import numpy as np
 import pytest
 
 
-def setup_function(function):
-    mds_setup()
-
-
-def teardown_function(function):
-    mds_teardown()
-
-
-def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_uid=True):
+def shallow_header_verify(hdf_path, header, mds, fields=None, stream_name=None, use_uid=True):
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
         # supposed to be in
@@ -34,7 +24,7 @@ def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_u
             if stream_name is not None:
                 if stream_name != descriptor.name:
                     continue
-            table_load = get_events_table(descriptor)
+            table_load = mds.get_events_table(descriptor)
             table = table_load[1]  # only get data
             if use_uid:
                 descriptor_path = '%s/%s' % (sub_path, descriptor.uid)
@@ -68,56 +58,66 @@ def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_u
                 assert all(np.diff(timestamps) > 0)
 
 
-def test_hdf5_export_single():
+def test_hdf5_export_single(mds_all):
     """
     Test the hdf5 export with a single header and
     verify the output is correct
     """
-    temperature_ramp.run()
+    mds = mds_all
+    temperature_ramp.run(mds)
+    db = Broker(mds, fs=None)
     hdr = db[-1]
     fname = tempfile.NamedTemporaryFile()
-    hdf5.export(hdr, fname.name)
-    shallow_header_verify(fname.name, hdr)
+    hdf5.export(hdr, fname.name, mds)
+    shallow_header_verify(fname.name, hdr, mds)
 
 
-def test_hdf5_export_single_no_uid():
+def test_hdf5_export_single_no_uid(mds_all):
     """
     Test the hdf5 export with a single header and
     verify the output is correct. No uid is used.
     """
-    temperature_ramp.run()
+    mds = mds_all
+    temperature_ramp.run(mds)
+    db = Broker(mds, fs=None)
     hdr = db[-1]
     fname = tempfile.NamedTemporaryFile()
-    hdf5.export(hdr, fname.name, use_uid=False)
-    shallow_header_verify(fname.name, hdr, use_uid=False)
+    hdf5.export(hdr, fname.name, mds, use_uid=False)
+    shallow_header_verify(fname.name, hdr, mds, use_uid=False)
 
 
-def test_hdf5_export_single_stream_name():
+def test_hdf5_export_single_stream_name(mds_all):
     """
     Test the hdf5 export with a single header and
     verify the output is correct. No uid is used.
     """
-    temperature_ramp.run()
+    mds = mds_all
+    temperature_ramp.run(mds)
+    db = Broker(mds, fs=None)
     hdr = db[-1]
     fname = tempfile.NamedTemporaryFile()
-    hdf5.export(hdr, fname.name, stream_name='primary')
-    shallow_header_verify(fname.name, hdr, stream_name='primary')
+    hdf5.export(hdr, fname.name, mds, stream_name='primary')
+    shallow_header_verify(fname.name, hdr, mds, stream_name='primary')
 
 
-def test_hdf5_export_with_fields_single():
+def test_hdf5_export_with_fields_single(mds_all):
     """
     Test the hdf5 export with a single header and
     verify the output is correct; fields kwd is used.
     """
-    temperature_ramp.run()
+    mds = mds_all
+    temperature_ramp.run(mds)
+    db = Broker(mds, fs=None)
     hdr = db[-1]
     fname = tempfile.NamedTemporaryFile()
-    hdf5.export(hdr, fname.name, fields=['point_dev'])
-    shallow_header_verify(fname.name, hdr, fields=['point_dev'])
+    hdf5.export(hdr, fname.name, mds, fields=['point_dev'])
+    shallow_header_verify(fname.name, hdr, mds, fields=['point_dev'])
 
 
-def test_filter_fields():
-    temperature_ramp.run()
+def test_filter_fields(mds_all):
+    mds = mds_all
+    temperature_ramp.run(mds)
+    db = Broker(mds, fs=None)
     hdr = db[-1]
     unwanted_fields = ['point_det']
     out = hdf5.filter_fields(hdr, unwanted_fields)
@@ -126,16 +126,18 @@ def test_filter_fields():
     assert len(out)==3
 
 
-def test_hdf5_export_list():
+def test_hdf5_export_list(mds_all):
     """
     Test the hdf5 export with a list of headers and
     verify the output is correct
     """
-    temperature_ramp.run()
-    temperature_ramp.run()
+    mds = mds_all
+    temperature_ramp.run(mds)
+    temperature_ramp.run(mds)
+    db = Broker(mds, fs=None)
     hdrs = db[-2:]
     fname = tempfile.NamedTemporaryFile()
     # test exporting a list of headers
-    hdf5.export(hdrs, fname.name)
+    hdf5.export(hdrs, fname.name, mds)
     for hdr in hdrs:
-        shallow_header_verify(fname.name, hdr)
+        shallow_header_verify(fname.name, hdr, mds)
