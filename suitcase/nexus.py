@@ -1,5 +1,6 @@
 #-------------------------------------------------------------------------
 # Copyright (c) 2015-, Brookhaven National Laboratory
+# Copyright (c) 2017, Argonne National Laboratory
 #
 # Distributed under the terms of the BSD 3-Clause License.
 #
@@ -18,12 +19,12 @@ from databroker.core import Header
 def export(headers, filename, mds,
            stream_name=None, fields=None, timestamps=True, use_uid=True):
     """
-    Create hdf5 file to preserve the structure of databroker.
+    Create NeXus hdf5 file to record scan(s).
 
     Parameters
     ----------
     headers : a Header or a list of Headers
-        objects retruned by the Data Broker
+        objects returned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
     mds : metadatastore object
@@ -34,13 +35,13 @@ def export(headers, filename, mds,
         The default is None.
     fields : list, optional
         whitelist of names of interest; if None, all are returned;
-        This is consistent with name convension in databroker.
+        This is consistent with name convention in databroker.
         The default is None.
     timestamps : Bool, optional
         save timestamps or not
     use_uid : Bool, optional
-        Create nxentry_group name at hdf file based on uid if this value is set as True.
-        Otherwise nxentry_group name is created based on beamline id and run id.
+        Create group name in hdf file based on uid if this value is set as True.
+        Otherwise group name is created based on beamline id and run id.
     """
     if isinstance(headers, Header):
         headers = [headers]
