@@ -27,17 +27,24 @@ NeXus structure::
 
 '''
 
-from collections import Mapping
-import numpy as np
-import warnings
-import h5py
-import json
-import re
-import time
 import datetime
 import dateutil.parser
-from databroker.databroker import fill_event
+import h5py
+import json
+import jsonschema
+import numpy as np
+import re
+import time
+import uuid
+import warnings
+
+from collections import Mapping
+from collections import defaultdict
 from databroker.core import Header
+from databroker.databroker import fill_event
+from datetime import datetime
+from event_model import schemas, DocumentNames
+
 
 # prefix attribute names so we do not accidentally use a NeXus reserved name
 ATTRIBUTE_PREFIX = '_BlueSky_'
@@ -46,7 +53,7 @@ ATTRIBUTE_PREFIX = '_BlueSky_'
 def pick_NeXus_safe_name(supplied):
     '''
     ensure supplied name is consistent with NeXus name recommendations
-    
+
     :see: http://download.nexusformat.org/doc/html/datarules.html#index-2
     '''
     safe = supplied
@@ -104,11 +111,11 @@ def export(headers, filename, mds,
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
                 continue
-            
+
             if use_uid:
                 proposed_name = header['start']['uid']
             else:
-                proposed_name = str(header['start']['beamline_id']) 
+                proposed_name = str(header['start']['beamline_id'])
                 proposed_name += '_' + str(header['start']['scan_id'])
             nxentry = f.create_group(pick_NeXus_safe_name(proposed_name))
             nxentry.attrs["NX_class"] = "NXentry"
@@ -137,7 +144,7 @@ def export(headers, filename, mds,
                 data_keys = descriptor.pop('data_keys')
 
                 _safe_attrs_assignment(nxlog, descriptor)
-                
+
                 # TODO: possible to create a useful NXinstrument group?
 
                 nxdata = nxentry.create_group(
@@ -145,10 +152,10 @@ def export(headers, filename, mds,
                 nxdata.attrs["NX_class"] = "NXdata"
                 if nxentry.attrs.get("default") is None:
                     nxentry.attrs["default"] = nxdata.name.split("/")[-1]
-                
+
                 '''
                 structure (under nxlog:NXlog):
-                
+
                     [data_keys]
                         @axes = data_key_timestamps
                     [data_keys]_timestamps
@@ -207,7 +214,7 @@ def export(headers, filename, mds,
                             safename, data=data,
                             compression='gzip', fletcher32=True)
                     dataset.attrs['key_name'] = key
-                    
+
                     # only link to the NXdata group if the data is numerical
                     if value['dtype'] in ('number',):
                         nxdata[safename] = dataset
@@ -284,3 +291,111 @@ def filter_fields(headers, unwanted_fields):
                     if key not in unwanted_fields]
             whitelist.update(good)
     return whitelist
+
+
+def _dset_to_list_sclr_maybe(dset):
+    v = dset[:]
+    if len(v) == 1:
+        v = v[0]
+    if isinstance(v, bytes):
+        v = v.decode()
+
+    return v
+
+
+def injest_nexus(fname):
+    '''Injest a single nexus file
+
+    Top level groups map to
+
+    Yields
+    ------
+    name : str
+        type of Document
+
+    doc : Document
+        The payloab
+    '''
+    with h5py.File(fname, 'r') as f:
+        for rn, run in f.items():
+            # TODO dispatch by 'analysis' key?
+            by_class = defaultdict(list)
+            hdr = {}
+            for gn, g in run.items():
+                nxcls = g.attrs.get('NX_class', b'hdr').decode()
+                if nxcls == 'hdr':
+                    hdr[gn] = _dset_to_list_sclr_maybe(g)
+                else:
+                    by_class[nxcls].append((gn, g))
+            st_uid = str(uuid.uuid4())
+
+            for nm, samp in by_class['NXsample']:
+                l_dict = {}
+                for k, v in samp.items():
+                    l_dict[k] = _dset_to_list_sclr_maybe(v)
+                hdr[nm] = l_dict
+
+            start_time = hdr.get('start_time', None)
+            if start_time is not None:
+                hdr['time'] = datetime.strptime(
+                    start_time, '%Y-%m-%dT%H:%M:%S%z').timestamp()
+            else:
+                hdr['time'] = time.time()
+
+            yield 'start', {'uid': st_uid, 'nx_entry': rn, **hdr}
+
+            for nm, mon in by_class['NXmonitor']:
+                # TODO handle not-tof case
+
+                # data payload is in 'data' and is a histogram
+                # time_of_flight' in bin edges
+                # everything else is configuration
+                data_keys = _gen_data_keys_from_dset(
+                    mon['data'], nm, nm)
+                configuration = {nm: {'data': {},
+                                      'data_keys': {},
+                                      'timestamps': {}}}
+                object_keys = {nm: [nm]}
+
+                cf = configuration[nm]
+
+                for dname, d in mon.items():
+                    if dname in ['data']:
+                        continue
+                    cf['data_keys'][dname] = _gen_data_keys_from_dset(
+                        mon['time_of_flight'], nm, dname)
+                    cf['data'][dname] = d[...]
+                    cf['timestamps'][dname] = 0
+
+                d_uid = str(uuid.uuid4())
+                yield 'descriptor', {'run_start': st_uid,
+                                     'data_keys': data_keys,
+                                     'time': time.time(),
+                                     'name': nm,
+                                     'uid': d_uid,
+                                     'configuration': configuration,
+                                     'object_keys': object_keys
+                                     }
+                yield 'event', {'descriptor': d_uid,
+                                'timestamps': {nm: 0},
+                                'data': {nm: mon['data'][:]},
+                                'time': time.time(),
+                                'filled': {},
+                                'seq_num': 1,
+                                'uid': str(uuid.uuid4())}
+
+
+def _gen_data_keys_from_dset(dset, ob_nm, dset_nm):
+    fname = dset.file.filename
+    sname = '{}\{}'.format
+    data_keys = {dset_nm: {'dtype': 'array',
+                           'shape': dset.shape,
+                           'source': sname(fname, dset.name),
+                           'object_name': ob_nm}
+                 }
+    return data_keys
+
+
+def validate_stream(inp):
+    for nm, doc in inp:
+        jsonschema.validate(doc, schemas[DocumentNames(nm)])
