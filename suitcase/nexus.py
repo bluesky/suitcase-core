@@ -129,8 +129,8 @@ def export(headers, filename, mds,
                 structure (under nxlog:NXlog):
                 
                     [data_keys]
-                        @axes = data_key_timestamp
-                    [data_keys]_timestamp
+                        @axes = data_key_timestamps
+                    [data_keys]_timestamps
                     time (must be renamed or converted) Is this necessary?
 
                 :see: http://download.nexusformat.org/doc/html/classes/base_classes/NXlog.html
@@ -155,7 +155,7 @@ def export(headers, filename, mds,
                     safename = pick_NeXus_safe_name(key)
                     if timestamps:
                         timestamps = [e['timestamps'][safename] for e in events]
-                        ts = nxlog.create_dataset(safename+'_timestamp', data=timestamps,
+                        ts = nxlog.create_dataset(safename+'_timestamps', data=timestamps,
                                                 compression='gzip',
                                                 fletcher32=True)
                         ts.attrs['key_name'] = key

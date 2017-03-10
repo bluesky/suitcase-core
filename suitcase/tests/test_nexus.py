@@ -7,6 +7,24 @@ import numpy as np
 import pytest
 
 
+'''
+write header(s) to NeXus HDF5 file
+
+NeXus structure::
+
+    NXroot
+        NXentry (one for each header)
+            descriptor_name:NXlog (one for each descriptor)
+                dataset (one for each data_key)
+                    @axes = name of dataset_timestamps if provided
+                dataset_timestamps (one for each data_key timestamps if provided)
+            descriptor_name_data:NXdata (one for each descriptor)
+                @signal = name of first dataset in this group
+                dataset (HDF5 hard link to original dataset in NXlog group)
+                dataset_timestamps (HDF5 hard link to original dataset_timestamps in NXlog group if provided)
+
+'''
+
 def shallow_header_verify(hdf_path, header, mds, fields=None, stream_name=None, use_uid=True):
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
@@ -55,7 +73,7 @@ def shallow_header_verify(hdf_path, header, mds, fields=None, stream_name=None, 
                         hdf_data = np.array(hdf_data).astype('str')
                 np.testing.assert_array_equal(hdf_data, broker_data)
                 # make sure the data is sorted in chronological order
-                timestamps_path = "%s/%s_timestamp" % (descriptor_path, safe_key)
+                timestamps_path = "%s/%s_timestamps" % (descriptor_path, safe_key)
                 timestamps = np.asarray(f[timestamps_path])
                 assert all(np.diff(timestamps) > 0)
 
