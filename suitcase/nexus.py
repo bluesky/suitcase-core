@@ -32,7 +32,7 @@ def pick_NeXus_safe_name(supplied):
     if '0123456789'.find(safe[0]) >= 0:
         safe = '_' + safe
     pattern = r'[A-Za-z_][\w_]*'
-    while re.fullmatch(pattern, safe) is None:
+    while len(re.findall(pattern, safe)) > 1:
         parts = re.split('('+pattern+')', safe, maxsplit=1)
         # assume len(parts) == 3
         safe = parts[1] + '_' + parts[2][1:]
