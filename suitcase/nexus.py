@@ -18,6 +18,9 @@ import dateutil.parser
 from databroker.databroker import fill_event
 from databroker.core import Header
 
+# prefix attribute names so we do not accidentally use a NeXus reserved name
+ATTRIBUTE_PREFIX = '_BlueSky_'
+
 
 def pick_NeXus_safe_name(supplied):
     '''
@@ -126,7 +129,7 @@ def export(headers, filename, mds,
                 structure (under nxlog:NXlog):
                 
                     [data_keys]
-                        @timestamp = data_key_timestamp
+                        @axes = data_key_timestamp
                     [data_keys]_timestamp
                     time (must be renamed or converted) Is this necessary?
 
@@ -189,13 +192,13 @@ def export(headers, filename, mds,
                         nxdata[safename] = dataset
                         dataset.attrs['target'] = dataset.name
                         if nxdata.attrs.get("h5py") is None:
-                            nxdata.attrs["signal"] = nxdata.name.split("/")[-1]
+                            nxdata.attrs["signal"] = dataset.name.split("/")[-1]
 
                     if ts is not None:
                         # point to the associated timestamp array
-                        dataset.attrs['timestamp'] = ts.name.split('/')[-1]
+                        dataset.attrs['axes'] = ts.name.split('/')[-1]
                         if value['dtype'] in ('number',):
-                            nxdata[dataset.attrs['timestamp']] = ts
+                            nxdata[dataset.attrs['axes']] = ts
                             ts.attrs['target'] = ts.name
 
                     # Put contents of this data key (source, etc.)
@@ -221,8 +224,6 @@ def _clean_dict(d):
 
 
 def _safe_attrs_assignment(node, d):
-    # prefix these attributes so we do not accidentally use a NeXus reserved name
-    attribute_prefix = '_BlueSky_'
     d = _clean_dict(d)
     for key, value in d.items():
         # Special-case None, which fails too late to catch below.
@@ -230,11 +231,11 @@ def _safe_attrs_assignment(node, d):
             value = 'None'
         # Try storing natively.
         try:
-            node.attrs[attribute_prefix + key] = value
+            node.attrs[ATTRIBUTE_PREFIX + key] = value
         # Fallback: Save the repr, which in many cases can be used to
         # recreate the object.
         except TypeError:
-            node.attrs[attribute_prefix + key] = json.dumps(value)
+            node.attrs[ATTRIBUTE_PREFIX + key] = json.dumps(value)
 
 
 def filter_fields(headers, unwanted_fields):
