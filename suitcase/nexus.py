@@ -6,6 +6,27 @@
 # The full license is in the file LICENSE, distributed with this software.
 #-------------------------------------------------------------------------
 
+
+'''
+write header(s) to NeXus HDF5 file
+
+NeXus structure::
+
+    NXroot
+        @default = name of first NXentry group
+        NXentry (one for each header)
+            @default = name of first NXdata group
+            descriptor_name:NXlog (one for each descriptor)
+                dataset (one for each data_key)
+                    @axes = name of dataset_timestamps if provided
+                dataset_timestamps (one for each data_key timestamps if provided)
+            descriptor_name_data:NXdata (one for each descriptor)
+                @signal = name of first dataset in this group
+                dataset (HDF5 hard link to original dataset in NXlog group)
+                dataset_timestamps (HDF5 hard link to original dataset_timestamps in NXlog group if provided)
+
+'''
+
 from collections import Mapping
 import numpy as np
 import warnings
