@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------
-# Copyright (c) 2015-, Brookhaven National Laboratory
+# Copyright (c) 2015-2017, Brookhaven National Laboratory, Argonne National Laboratory
 #
 # Distributed under the terms of the BSD 3-Clause License.
 #
