@@ -7,24 +7,6 @@ import numpy as np
 import pytest
 
 
-'''
-write header(s) to NeXus HDF5 file
-
-NeXus structure::
-
-    NXroot
-        NXentry (one for each header)
-            descriptor_name:NXlog (one for each descriptor)
-                dataset (one for each data_key)
-                    @axes = name of dataset_timestamps if provided
-                dataset_timestamps (one for each data_key timestamps if provided)
-            descriptor_name_data:NXdata (one for each descriptor)
-                @signal = name of first dataset in this group
-                dataset (HDF5 hard link to original dataset in NXlog group)
-                dataset_timestamps (HDF5 hard link to original dataset_timestamps in NXlog group if provided)
-
-'''
-
 def shallow_header_verify(hdf_path, header, mds, fields=None, stream_name=None, use_uid=True):
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
