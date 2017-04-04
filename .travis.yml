@@ -60,7 +60,7 @@ script:
   - coverage report -m
   - |
     if [ $BUILD_DOCS == true ]; then
-      source ~/ci_scripts/make-docs.sh
+      source ~/scripts/make-docs.sh
     fi
 
 after_success:
