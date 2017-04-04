@@ -1,5 +1,14 @@
 language: python
 
+env:
+  global:
+    BUILD_DOCS_BRANCH: master
+    DOCS_SUBDIR: doc/
+    TARGET_DEV_SUBDIR: suitcase/
+    HTML_SUBDIR: build/html
+    DOCS_CONDA_DEPS: "matplotlib"
+    DOCS_PIP_DEPS: "tqdm"
+
 services:
   - mongodb
 
