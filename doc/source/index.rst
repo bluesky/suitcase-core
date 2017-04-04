@@ -19,9 +19,9 @@ Usage Example
 .. code-block:: python
 
     from databroker import DataBroker as db
-    import suitcase
+    from suitcase import hdf5
     last_run = db[-1]
-    suitcase.export(last_run, 'myfile.h5')
+    hdf5.export(last_run, 'myfile.h5', mds=db.mds)
 
 The first argument may be a single Header or a list of Headers. This is the
 API documentation for the only function in suitcase:
