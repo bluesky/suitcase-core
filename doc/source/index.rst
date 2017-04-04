@@ -23,7 +23,9 @@ Usage Example
     last_run = db[-1]
     hdf5.export(last_run, 'myfile.h5', mds=db.mds)
 
-The first argument may be a single Header or a list of Headers. This is the
+The first argument may be a single Header or a list of Headers. You can also use keyword "fields"
+in this function to define specifically which data sets you want to output.
+
 API documentation for the only function in suitcase:
 
 .. currentmodule:: suitcase

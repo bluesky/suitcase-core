@@ -14,10 +14,14 @@ cache:
   directories:
     - $HOME/.cache/pip
 
-python:
-  - 2.7
-  - 3.4
-  - 3.5
+matrix:
+  include:
+    - python: 2.7
+      env: BUILD_DOCS=false
+    - python: 3.5
+      env: BUILD_DOCS=false
+    - python: 3.6
+      env: BUILD_DOCS=true
 
 before_install:
   - "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16"
@@ -54,6 +58,10 @@ install:
 script:
   - coverage run run_tests.py
   - coverage report -m
+  - |
+    if [ $BUILD_DOCS == true ]; then
+      source ~/ci_scripts/make-docs.sh
+    fi
 
 after_success:
   - codecov
