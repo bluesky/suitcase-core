@@ -1,5 +1,14 @@
 language: python
 
+env:
+  global:
+    BUILD_DOCS_BRANCH: master
+    DOCS_SUBDIR: doc/
+    TARGET_DEV_SUBDIR: suitcase/
+    HTML_SUBDIR: build/html
+    DOCS_CONDA_DEPS: "matplotlib"
+    DOCS_PIP_DEPS: "tqdm"
+
 services:
   - mongodb
 
@@ -14,10 +23,14 @@ cache:
   directories:
     - $HOME/.cache/pip
 
-python:
-  - 2.7
-  - 3.4
-  - 3.5
+matrix:
+  include:
+    - python: 2.7
+      env: BUILD_DOCS=false
+    - python: 3.5
+      env: BUILD_DOCS=false
+    - python: 3.6
+      env: BUILD_DOCS=true
 
 before_install:
   - "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16"
@@ -39,7 +52,7 @@ install:
   - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage event-model doct jinja2 pandas prettytable
   - source activate testenv
   - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then
-      conda install bluesky;
+      conda install bluesky -c lightsource2-tag;
     else
       pip install singledispatch;
     fi;
@@ -54,6 +67,19 @@ install:
 script:
   - coverage run run_tests.py
   - coverage report -m
+  - |
+    if [ $BUILD_DOCS == true ]; then
+      source ~/scripts/make-docs.sh
+    fi
 
 after_success:
   - codecov
+  - |
+    if [[ $TRAVIS_PULL_REQUEST == false && $TRAVIS_REPO_SLUG == 'NSLS-II/suitcase' && $BUILD_DOCS == true && $TRAVIS_BRANCH == 'master' ]]; then
+      echo "Adding encrypted deployment key for uploading docs"
+      openssl aes-256-cbc -K $encrypted_5e70d93e51c3_key -iv $encrypted_5e70d93e51c3_iv -in deploy_key_suitcase.enc -out deploy_key_suitcase -d
+      eval `ssh-agent -s`
+      chmod 600 deploy_key_suitcase
+      ssh-add deploy_key_suitcase
+      source ~/ci_scripts/push-docs.sh
+    fi

@@ -23,10 +23,25 @@ Usage Example
     last_run = db[-1]
     hdf5.export(last_run, 'myfile.h5', mds=db.mds)
 
-The first argument may be a single Header or a list of Headers. This is the
-API documentation for the only function in suitcase:
+The first argument may be a single Header or a list of Headers. You can also use keyword "fields"
+in this function to define specifically which data sets you want to output.
 
-.. currentmodule:: suitcase
+.. code-block:: python
+
+    from suitcase import hdf5
+    hdr = db[123]
+    un_wanted_fields = ['A', 'B', 'C']
+    fds = hdf5.filter_fields(hdr, un_wanted_fields)
+    filename = 'scanID_123.h5'
+    hdf5.export(hdr, filename, mds=db.mds, fields=fds)
+
+Here I assume A, B, C are keywords for some vector data, like images. You can define them as un_wanted_fields.
+Saving data with scaler data and header information should be very faster. Please also define filename clearly,
+so you know which data it comes from.
+
+API documentation for exporting hdf function in suitcase:
+
+.. currentmodule:: suitcase.hdf5
 
 .. autofunction:: export
 
