@@ -43,7 +43,7 @@ API documentation for exporting hdf function in suitcase:
 
 .. currentmodule:: suitcase
 
-.. autofunction:: hdf.export
+.. autofunction:: hdf5.export
 
 File Format and Project Roadmap
 -------------------------------
