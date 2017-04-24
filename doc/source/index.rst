@@ -41,9 +41,9 @@ so you know which data it comes from.
 
 API documentation for exporting hdf function in suitcase:
 
-.. currentmodule:: suitcase
+.. currentmodule:: suitcase.hdf5
 
-.. autofunction:: hdf5.export
+.. autofunction:: export
 
 File Format and Project Roadmap
 -------------------------------
