@@ -30,20 +30,20 @@ in this function to define specifically which data sets you want to output.
 
     from suitcase import hdf5
     hdr = db[123]
-    un_wanted_fields = [‘A’, ‘B’, ‘C’]
+    un_wanted_fields = ['A', 'B', 'C']
     fds = hdf5.filter_fields(hdr, un_wanted_fields)
-    filename = ‘scanID_123.h5’
+    filename = 'scanID_123.h5'
     hdf5.export(hdr, filename, mds=db.mds, fields=fds)
 
 Here I assume A, B, C are keywords for some vector data, like images. You can define them as un_wanted_fields.
 Saving data with scaler data and header information should be very faster. Please also define filename clearly,
 so you know which data it comes from.
 
-API documentation for the only function in suitcase:
+API documentation for exporting hdf function in suitcase:
 
 .. currentmodule:: suitcase
 
-.. autofunction:: export
+.. autofunction:: hdf.export
 
 File Format and Project Roadmap
 -------------------------------
