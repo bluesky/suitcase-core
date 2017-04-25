@@ -81,5 +81,5 @@ after_success:
       eval `ssh-agent -s`
       chmod 600 deploy_key_suitcase
       ssh-add deploy_key_suitcase
-      source ~/ci_scripts/push-docs.sh
+      source ~/scripts/push-docs.sh
     fi
