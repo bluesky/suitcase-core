@@ -8,7 +8,7 @@ AUTH = os.environ.get('MDSTESTWITHAUTH', False)
 
 
 @pytest.fixture(params=[1], scope='function')
-def db_all(request):
+def mds_all(request):
     '''Provide a function level scoped metadatastore instance talking to
     temporary database on localhost:27017 with focus on v1.
     '''
@@ -28,4 +28,4 @@ def db_all(request):
 
     request.addfinalizer(delete_dm)
 
-    return db
+    return db.mds
