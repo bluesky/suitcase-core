@@ -10,7 +10,7 @@ Suitcase is a simple utility for exporting data from the
 `databroker <https://nsls-ii.github.io/databroker>`_
 into a stand-alone, portable file.
 
-Currently, it has just one function, ``export``, which writes the data from
+Currently, it has one main function called ``export``, which writes the data from
 one or more runs into HDF5 file.
 
 Usage Example
