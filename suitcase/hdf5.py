@@ -15,8 +15,9 @@ from databroker.databroker import fill_event
 from databroker.core import Header
 
 
-def export(headers, filename, mds,
-           stream_name=None, fields=None, timestamps=True, use_uid=True):
+def export(headers, filename,
+           stream_name=None, fields=None,
+           timestamps=True, use_uid=True, db=None):
     """
     Create hdf5 file to preserve the structure of databroker.
 
@@ -26,8 +27,6 @@ def export(headers, filename, mds,
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
-    mds : metadatastore object
-        metadatastore object or alike, like db.mds from databroker
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
@@ -41,6 +40,8 @@ def export(headers, filename, mds,
     use_uid : Bool, optional
         Create group name at hdf file based on uid if this value is set as True.
         Otherwise group name is created based on beamline id and run id.
+    db : databroker object
+        For future development, db will be included in hdr.
     """
     if isinstance(headers, Header):
         headers = [headers]
@@ -76,7 +77,7 @@ def export(headers, filename, mds,
 
                 _safe_attrs_assignment(desc_group, descriptor)
 
-                events = list(mds.get_events_generator(descriptor))
+                events = list(db.mds.get_events_generator(descriptor))
                 event_times = [e['time'] for e in events]
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)
