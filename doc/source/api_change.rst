@@ -21,4 +21,8 @@ update will be taken care of later.
 
 ``suitcase.spec``
 -----------------
-Replaced input parameter mds with db in all functions in spec.py. db=None is set as default
+Replaced input parameter mds with db in all functions in spec.py. db=None is set as default.
+
+``suitcase.nexus``
+-----------------
+Replaced input parameter mds with db in all functions in nexus.py. db=None is set as default.
