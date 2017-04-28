@@ -46,7 +46,7 @@ ATTRIBUTE_PREFIX = '_BlueSky_'
 def pick_NeXus_safe_name(supplied):
     '''
     ensure supplied name is consistent with NeXus name recommendations
-    
+
     :see: http://download.nexusformat.org/doc/html/datarules.html#index-2
     '''
     safe = supplied
@@ -60,8 +60,9 @@ def pick_NeXus_safe_name(supplied):
     return safe
 
 
-def export(headers, filename, mds,
-           stream_name=None, fields=None, timestamps=True, use_uid=True):
+def export(headers, filename,
+           stream_name=None, fields=None,
+           timestamps=True, use_uid=True, db=None):
     """
     Create NeXus HDF5 file to preserve the structure of databroker.
 
@@ -71,8 +72,6 @@ def export(headers, filename, mds,
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
-    mds : metadatastore object
-        metadatastore object or alike, like db.mds from databroker
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
@@ -86,6 +85,7 @@ def export(headers, filename, mds,
     use_uid : Bool, optional
         Create group name at hdf file based on uid if this value is set as True.
         Otherwise group name is created based on beamline id and run id.
+    db : databroker object, optional
     """
     if isinstance(headers, Header):
         headers = [headers]
@@ -104,11 +104,11 @@ def export(headers, filename, mds,
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
                 continue
-            
+
             if use_uid:
                 proposed_name = header['start']['uid']
             else:
-                proposed_name = str(header['start']['beamline_id']) 
+                proposed_name = str(header['start']['beamline_id'])
                 proposed_name += '_' + str(header['start']['scan_id'])
             nxentry = f.create_group(pick_NeXus_safe_name(proposed_name))
             nxentry.attrs["NX_class"] = "NXentry"
@@ -137,7 +137,7 @@ def export(headers, filename, mds,
                 data_keys = descriptor.pop('data_keys')
 
                 _safe_attrs_assignment(nxlog, descriptor)
-                
+
                 # TODO: possible to create a useful NXinstrument group?
 
                 nxdata = nxentry.create_group(
@@ -145,10 +145,10 @@ def export(headers, filename, mds,
                 nxdata.attrs["NX_class"] = "NXdata"
                 if nxentry.attrs.get("default") is None:
                     nxentry.attrs["default"] = nxdata.name.split("/")[-1]
-                
+
                 '''
                 structure (under nxlog:NXlog):
-                
+
                     [data_keys]
                         @axes = data_key_timestamps
                     [data_keys]_timestamps
@@ -157,7 +157,7 @@ def export(headers, filename, mds,
                 :see: http://download.nexusformat.org/doc/html/classes/base_classes/NXlog.html
                 '''
 
-                events = list(mds.get_events_generator(descriptor))
+                events = list(db.mds.get_events_generator(descriptor))
                 event_times = np.array([e['time'] for e in events])
                 start = event_times[0]
                 ds = nxlog.create_dataset(
@@ -207,7 +207,7 @@ def export(headers, filename, mds,
                             safename, data=data,
                             compression='gzip', fletcher32=True)
                     dataset.attrs['key_name'] = key
-                    
+
                     # only link to the NXdata group if the data is numerical
                     if value['dtype'] in ('number',):
                         nxdata[safename] = dataset

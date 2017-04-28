@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 
-def shallow_header_verify(hdf_path, header, mds, fields=None, stream_name=None, use_uid=True):
+def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_uid=True, db=None):
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
         # supposed to be in
@@ -25,7 +25,7 @@ def shallow_header_verify(hdf_path, header, mds, fields=None, stream_name=None, 
             if stream_name is not None:
                 if stream_name != descriptor.name:
                     continue
-            table_load = mds.get_events_table(descriptor)
+            table_load = db.mds.get_events_table(descriptor)
             table = table_load[1]  # only get data
             if use_uid:
                 descriptor_path = '%s/%s' % (safe_subpath, nexus.pick_NeXus_safe_name(descriptor.uid))
@@ -61,7 +61,7 @@ def shallow_header_verify(hdf_path, header, mds, fields=None, stream_name=None, 
 
 def validate_basic_NeXus_structure(hdf_path):
     with h5py.File(hdf_path) as f:
-        
+
         # check for default path to plottable data
         if f.attrs.get('default') is not None:
             assert f.attrs.get('default') in f
@@ -77,71 +77,66 @@ def validate_basic_NeXus_structure(hdf_path):
         # TODO: check that NXdata/@signal points to existing dataset
 
 
-def test_nexus_export_single(mds_all):
+def test_nexus_export_single(db_all):
     """
     Test the NeXus HDF5 export with a single header and
     verify the output is correct
     """
-    mds = mds_all
+    mds = db_all.mds
     temperature_ramp.run(mds)
-    db = Broker(mds, fs=None)
-    hdr = db[-1]
+    hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
-    nexus.export(hdr, fname.name, mds)
-    shallow_header_verify(fname.name, hdr, mds)
+    nexus.export(hdr, fname.name, db=db_all)
+    shallow_header_verify(fname.name, hdr, db=db_all)
     validate_basic_NeXus_structure(fname.name)
 
 
-def test_nexus_export_single_no_uid(mds_all):
+def test_nexus_export_single_no_uid(db_all):
     """
     Test the NeXus HDF5 export with a single header and
     verify the output is correct. No uid is used.
     """
-    mds = mds_all
+    mds = db_all.mds
     temperature_ramp.run(mds)
-    db = Broker(mds, fs=None)
-    hdr = db[-1]
+    hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
-    nexus.export(hdr, fname.name, mds, use_uid=False)
-    shallow_header_verify(fname.name, hdr, mds, use_uid=False)
+    nexus.export(hdr, fname.name, use_uid=False, db=db_all)
+    shallow_header_verify(fname.name, hdr, use_uid=False, db=db_all)
     validate_basic_NeXus_structure(fname.name)
 
 
-def test_nexus_export_single_stream_name(mds_all):
+def test_nexus_export_single_stream_name(db_all):
     """
     Test the NeXus HDF5 export with a single header and
     verify the output is correct. No uid is used.
     """
-    mds = mds_all
+    mds = db_all.mds
     temperature_ramp.run(mds)
-    db = Broker(mds, fs=None)
-    hdr = db[-1]
+    hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
-    nexus.export(hdr, fname.name, mds, stream_name='primary')
-    shallow_header_verify(fname.name, hdr, mds, stream_name='primary')
+    nexus.export(hdr, fname.name, stream_name='primary', db=db_all)
+    shallow_header_verify(fname.name, hdr, stream_name='primary', db=db_all)
     validate_basic_NeXus_structure(fname.name)
 
 
-def test_nexus_export_with_fields_single(mds_all):
+def test_nexus_export_with_fields_single(db_all):
     """
     Test the NeXus HDF5 export with a single header and
     verify the output is correct; fields kwd is used.
     """
-    mds = mds_all
+    mds = db_all.mds
     temperature_ramp.run(mds)
-    db = Broker(mds, fs=None)
-    hdr = db[-1]
+    hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
-    nexus.export(hdr, fname.name, mds, fields=['point_dev'])
-    shallow_header_verify(fname.name, hdr, mds, fields=['point_dev'])
+    nexus.export(hdr, fname.name, fields=['point_dev'], db=db_all)
+    shallow_header_verify(fname.name, hdr, fields=['point_dev'], db=db_all)
     validate_basic_NeXus_structure(fname.name)
 
 
-def test_filter_fields(mds_all):
-    mds = mds_all
+def test_filter_fields(db_all):
+    mds = db_all.mds
     temperature_ramp.run(mds)
-    db = Broker(mds, fs=None)
-    hdr = db[-1]
+    hdr = db_all[-1]
     unwanted_fields = ['point_det']
     out = nexus.filter_fields(hdr, unwanted_fields)
     #original list is ('point_det', 'boolean_det', 'ccd_det_info', 'Tsam'),
@@ -149,19 +144,18 @@ def test_filter_fields(mds_all):
     assert len(out)==3
 
 
-def test_nexus_export_list(mds_all):
+def test_nexus_export_list(db_all):
     """
     Test the NeXus HDF5 export with a list of headers and
     verify the output is correct
     """
-    mds = mds_all
+    mds = db_all.mds
     temperature_ramp.run(mds)
     temperature_ramp.run(mds)
-    db = Broker(mds, fs=None)
-    hdrs = db[-2:]
+    hdrs = db_all[-2:]
     fname = tempfile.NamedTemporaryFile()
     # test exporting a list of headers
-    nexus.export(hdrs, fname.name, mds)
+    nexus.export(hdrs, fname.name, db=db_all)
     for hdr in hdrs:
-        shallow_header_verify(fname.name, hdr, mds)
+        shallow_header_verify(fname.name, hdr, db=db_all)
         validate_basic_NeXus_structure(fname.name)
