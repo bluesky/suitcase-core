@@ -31,13 +31,13 @@ Find the tagged recipe [here](https://github.com/NSLS-II/lightsource2-recipes/tr
 ## Export headers and data into a hdf file
 
 ```python
-from databroker import db
+from databroker import db  # the way to import db will be changed soon.
 from suitcase import hdf
 
 # find the header(s) that you want to export
 hdrs = db(start_time='2016-03-03', stop_time='2016-03-05')
 fname = '/path/to/output/data'
-hdf.export(hdrs, fname)
+hdf.export(hdrs, fname, db=db)
 ```
 
 ## Inserting data in the spec format into the databroker
@@ -55,10 +55,10 @@ from suitcase import spec
 specfile = spec.Specfile('/path/to/specfile')
 
 # Insert the whole specfile into the databroker
-spec.insert_into_broker(specfile)
+spec.insert_specfile_into_broker(specfile, db=db)
 
 # Insert a single scan into the databroker
 scan_id = 1
 specscan = specfile[scan_id]
-spec.insert_into_broker(specscan)
+spec.insert_specscan_into_broker(specscan, db=db)
 ```
