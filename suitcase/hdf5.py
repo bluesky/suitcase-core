@@ -47,6 +47,13 @@ def export(headers, filename,
     """
     if isinstance(headers, Header):
         headers = [headers]
+
+    try:
+        db = headers[0].db
+    except KeyError:
+        if db is None:
+            raise ValueError('db is not defined in header, so we need to input db explicitly.')
+
     with h5py.File(filename) as f:
         for header in headers:
             try:

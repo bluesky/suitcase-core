@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 
-def shallow_header_verify(hdf_path, header, fields=None,
-                          stream_name=None, use_uid=True, db=None):
+def shallow_header_verify(hdf_path, header, db, fields=None,
+                          stream_name=None, use_uid=True):
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
         # supposed to be in
@@ -82,7 +82,7 @@ def test_hdf5_export_single_no_uid(db_all):
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, use_uid=False, db=db_all)
-    shallow_header_verify(fname.name, hdr, use_uid=False, db=db_all)
+    shallow_header_verify(fname.name, hdr, db_all, use_uid=False)
 
 
 def test_hdf5_export_single_stream_name(db_all):
@@ -95,7 +95,7 @@ def test_hdf5_export_single_stream_name(db_all):
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, stream_name='primary', db=db_all)
-    shallow_header_verify(fname.name, hdr, stream_name='primary', db=db_all)
+    shallow_header_verify(fname.name, hdr, db_all, stream_name='primary')
 
 
 def test_hdf5_export_with_fields_single(db_all):
@@ -108,7 +108,7 @@ def test_hdf5_export_with_fields_single(db_all):
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, fields=['point_dev'], db=db_all)
-    shallow_header_verify(fname.name, hdr, fields=['point_dev'], db=db_all)
+    shallow_header_verify(fname.name, hdr, db_all, fields=['point_dev'])
 
 
 def test_filter_fields(db_all):
