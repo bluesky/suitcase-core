@@ -521,7 +521,7 @@ def specscan_to_document_stream(scan, validate=False, check_in_broker=False, db=
         metadatastore.  You will need to call find_* yourself to determine
         if it does exist
     """
-    if db.mds is None and check_in_broker:
+    if db is None and check_in_broker:
         raise NotImplementedError(
             "It is not possible to use the `check_in_broker=True` unless you "
             "have metadatastore installed. Please re-run this function with "
@@ -590,7 +590,7 @@ _find_map = {
 }
 
 
-def _check_and_update_document(doc_name, doc_dict, db=None):
+def _check_and_update_document(doc_name, doc_dict, db):
     """
     Check to see if the document already exists in metadatastore and
 
@@ -600,7 +600,7 @@ def _check_and_update_document(doc_name, doc_dict, db=None):
         One of the values in the event_model.DocumentNames enum
     doc_dict : dict
         The dictionary that corresponds to a document
-    db : databroker object, optional
+    db : databroker object
 
     Returns
     -------
