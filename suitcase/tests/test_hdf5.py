@@ -48,10 +48,10 @@ def shallow_header_verify(hdf_path, header, fields=None,
                 hdf_data = np.asarray(f[data_path])
                 broker_data = np.asarray(table[key])
                 if isinstance(hdf_data[0], np.bytes_):
-                    hdf_data = np.array(hdf_data).astype('str')
+                    hdf_data = np.array(hdf_data).astype('<U3')
                 if len(hdf_data.shape) == 2:
                     if isinstance(hdf_data[0,0], np.bytes_):
-                        hdf_data = np.array(hdf_data).astype('str')
+                        hdf_data = np.array(hdf_data).astype('<U3')
                 np.testing.assert_array_equal(hdf_data, broker_data)
                 # make sure the data is sorted in chronological order
                 timestamps_path = "%s/timestamps/%s" % (descriptor_path, key)

@@ -11,8 +11,10 @@ import numpy as np
 import warnings
 import h5py
 import json
+import copy
 from databroker.databroker import fill_event
 from databroker.core import Header
+import copy
 
 
 def export(headers, filename,
@@ -47,9 +49,8 @@ def export(headers, filename,
         headers = [headers]
     with h5py.File(filename) as f:
         for header in headers:
-            header = dict(header)
             try:
-                descriptors = header.pop('descriptors')
+                descriptors = header['descriptors']
             except KeyError:
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
@@ -73,11 +74,11 @@ def export(headers, filename,
                 else:
                     desc_group = group.create_group(descriptor['name'])
 
-                data_keys = descriptor.pop('data_keys')
+                data_keys = descriptor['data_keys']
 
                 _safe_attrs_assignment(desc_group, descriptor)
 
-                events = list(db.mds.get_events_generator(descriptor))
+                events = list(db.get_events(header, stream_name=descriptor['name']))
                 event_times = [e['time'] for e in events]
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)

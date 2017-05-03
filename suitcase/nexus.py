@@ -97,9 +97,8 @@ def export(headers, filename,
         f.attrs['HDF5_Version'] = h5py.version.hdf5_version
 
         for header in headers:
-            header = dict(header)
             try:
-                descriptors = header.pop('descriptors')
+                descriptors = header['descriptors']
             except KeyError:
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
@@ -112,7 +111,6 @@ def export(headers, filename,
                 proposed_name += '_' + str(header['start']['scan_id'])
             nxentry = f.create_group(pick_NeXus_safe_name(proposed_name))
             nxentry.attrs["NX_class"] = "NXentry"
-            #header.pop('_name')
             _safe_attrs_assignment(nxentry, header)   # TODO: improve this
 
             if f.attrs.get("default") is None:
@@ -134,7 +132,7 @@ def export(headers, filename,
                     pick_NeXus_safe_name(proposed_name))
                 nxlog.attrs["NX_class"] = "NXlog"
 
-                data_keys = descriptor.pop('data_keys')
+                data_keys = descriptor['data_keys']
 
                 _safe_attrs_assignment(nxlog, descriptor)
 
@@ -157,7 +155,7 @@ def export(headers, filename,
                 :see: http://download.nexusformat.org/doc/html/classes/base_classes/NXlog.html
                 '''
 
-                events = list(db.mds.get_events_generator(descriptor))
+                events = list(db.get_events(header, stream_name=descriptor['name']))
                 event_times = np.array([e['time'] for e in events])
                 start = event_times[0]
                 ds = nxlog.create_dataset(
