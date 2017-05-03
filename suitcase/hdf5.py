@@ -42,8 +42,8 @@ def export(headers, filename,
     use_uid : Bool, optional
         Create group name at hdf file based on uid if this value is set as True.
         Otherwise group name is created based on beamline id and run id.
-    db : databroker object
-        For future development, db will be included in hdr.
+    db : databroker object, optional
+        db should be included in hdr.
     """
     if isinstance(headers, Header):
         headers = [headers]
