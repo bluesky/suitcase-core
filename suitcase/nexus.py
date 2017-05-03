@@ -98,17 +98,17 @@ def export(headers, filename,
 
         for header in headers:
             try:
-                descriptors = header['descriptors']
+                descriptors = header.descriptors
             except KeyError:
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
                 continue
 
             if use_uid:
-                proposed_name = header['start']['uid']
+                proposed_name = header.start['uid']
             else:
-                proposed_name = str(header['start']['beamline_id'])
-                proposed_name += '_' + str(header['start']['scan_id'])
+                proposed_name = str(header.start['beamline_id'])
+                proposed_name += '_' + str(header.start['scan_id'])
             nxentry = f.create_group(pick_NeXus_safe_name(proposed_name))
             nxentry.attrs["NX_class"] = "NXentry"
             _safe_attrs_assignment(nxentry, header)   # TODO: improve this

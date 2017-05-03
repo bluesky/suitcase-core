@@ -50,15 +50,15 @@ def export(headers, filename,
     with h5py.File(filename) as f:
         for header in headers:
             try:
-                descriptors = header['descriptors']
+                descriptors = header.descriptors
             except KeyError:
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
                 continue
             if use_uid:
-                top_group_name = header['start']['uid']
+                top_group_name = header.start['uid']
             else:
-                top_group_name = str(header['start']['beamline_id']) + '_' + str(header['start']['scan_id'])
+                top_group_name = str(header.start['beamline_id']) + '_' + str(header.start['scan_id'])
             group = f.create_group(top_group_name)
             _safe_attrs_assignment(group, header)
             for i, descriptor in enumerate(descriptors):
