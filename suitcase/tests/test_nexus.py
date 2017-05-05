@@ -7,14 +7,14 @@ import numpy as np
 import pytest
 
 
-def shallow_header_verify(hdf_path, header, fields=None, stream_name=None, use_uid=True, db=None):
+def shallow_header_verify(hdf_path, header, db, fields=None, stream_name=None, use_uid=True):
     with h5py.File(hdf_path) as f:
         # make sure that the header is actually in the file that we think it is
         # supposed to be in
         if use_uid:
             sub_path = header.start.uid
         else:
-            sub_path = header.start.beamline_id + '_' + str(header.start.scan_id)
+            sub_path = 'data_' + str(header.start.scan_id)
         safe_subpath = nexus.pick_NeXus_safe_name(sub_path)
         assert safe_subpath in f
         assert dict(header.start) == eval(f[safe_subpath].attrs[nexus.ATTRIBUTE_PREFIX + 'start'])
@@ -87,7 +87,7 @@ def test_nexus_export_single(db_all):
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, db=db_all)
-    shallow_header_verify(fname.name, hdr, db=db_all)
+    shallow_header_verify(fname.name, hdr, db_all)
     validate_basic_NeXus_structure(fname.name)
 
 
@@ -101,7 +101,7 @@ def test_nexus_export_single_no_uid(db_all):
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, use_uid=False, db=db_all)
-    shallow_header_verify(fname.name, hdr, use_uid=False, db=db_all)
+    shallow_header_verify(fname.name, hdr, db_all, use_uid=False)
     validate_basic_NeXus_structure(fname.name)
 
 
@@ -115,7 +115,7 @@ def test_nexus_export_single_stream_name(db_all):
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, stream_name='primary', db=db_all)
-    shallow_header_verify(fname.name, hdr, stream_name='primary', db=db_all)
+    shallow_header_verify(fname.name, hdr, db_all, stream_name='primary')
     validate_basic_NeXus_structure(fname.name)
 
 
@@ -129,7 +129,7 @@ def test_nexus_export_with_fields_single(db_all):
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, fields=['point_dev'], db=db_all)
-    shallow_header_verify(fname.name, hdr, fields=['point_dev'], db=db_all)
+    shallow_header_verify(fname.name, hdr, db_all, fields=['point_dev'])
     validate_basic_NeXus_structure(fname.name)
 
 
@@ -157,5 +157,5 @@ def test_nexus_export_list(db_all):
     # test exporting a list of headers
     nexus.export(hdrs, fname.name, db=db_all)
     for hdr in hdrs:
-        shallow_header_verify(fname.name, hdr, db=db_all)
+        shallow_header_verify(fname.name, hdr, db_all)
         validate_basic_NeXus_structure(fname.name)

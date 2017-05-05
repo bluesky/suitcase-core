@@ -48,14 +48,15 @@ def export(headers, filename,
     if isinstance(headers, Header):
         headers = [headers]
 
-    try:
-        db = headers[0].db
-    except KeyError:
-        if db is None:
-            raise ValueError('db is not defined in header, so we need to input db explicitly.')
-
     with h5py.File(filename) as f:
         for header in headers:
+            try:
+                db = header.db
+            except (KeyError, AttributeError):
+                pass
+            if db is None:
+                raise RuntimeError('db is not defined in header, so we need to input db explicitly.')
+
             try:
                 descriptors = header.descriptors
             except KeyError:
@@ -65,7 +66,7 @@ def export(headers, filename,
             if use_uid:
                 top_group_name = header.start['uid']
             else:
-                top_group_name = str(header.start['beamline_id']) + '_' + str(header.start['scan_id'])
+                top_group_name = 'data_' + str(header.start['scan_id'])
             group = f.create_group(top_group_name)
             _safe_attrs_assignment(group, header)
             for i, descriptor in enumerate(descriptors):

@@ -86,6 +86,7 @@ def export(headers, filename,
         Create group name at hdf file based on uid if this value is set as True.
         Otherwise group name is created based on beamline id and run id.
     db : databroker object, optional
+        db should be included in hdr.
     """
     if isinstance(headers, Header):
         headers = [headers]
@@ -98,6 +99,13 @@ def export(headers, filename,
 
         for header in headers:
             try:
+                db = header.db
+            except (KeyError, AttributeError):
+                pass
+            if db is None:
+                raise RuntimeError('db is not defined in header, so we need to input db explicitly.')
+
+            try:
                 descriptors = header.descriptors
             except KeyError:
                 warnings.warn("Header with uid {header.uid} contains no "
@@ -107,8 +115,7 @@ def export(headers, filename,
             if use_uid:
                 proposed_name = header.start['uid']
             else:
-                proposed_name = str(header.start['beamline_id'])
-                proposed_name += '_' + str(header.start['scan_id'])
+                proposed_name = 'data_' + str(header.start['scan_id'])
             nxentry = f.create_group(pick_NeXus_safe_name(proposed_name))
             nxentry.attrs["NX_class"] = "NXentry"
             _safe_attrs_assignment(nxentry, header)   # TODO: improve this

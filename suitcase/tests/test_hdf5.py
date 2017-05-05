@@ -15,7 +15,7 @@ def shallow_header_verify(hdf_path, header, db, fields=None,
         if use_uid:
             sub_path = header.start.uid
         else:
-            sub_path = header.start.beamline_id + '_' + str(header.start.scan_id)
+            sub_path = 'data_' + str(header.start.scan_id)
         assert sub_path in f
         assert dict(header.start) == eval(f[sub_path].attrs['start'])
         assert dict(header.stop) == eval(f[sub_path].attrs['stop'])
