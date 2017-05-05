@@ -52,7 +52,7 @@ def export(headers, filename,
         for header in headers:
             try:
                 db = header.db
-            except (KeyError, AttributeError):
+            except AttributeError:
                 pass
             if db is None:
                 raise RuntimeError('db is not defined in header, so we need to input db explicitly.')

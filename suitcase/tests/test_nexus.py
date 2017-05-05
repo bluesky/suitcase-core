@@ -159,3 +159,15 @@ def test_nexus_export_list(db_all):
     for hdr in hdrs:
         shallow_header_verify(fname.name, hdr, db_all)
         validate_basic_NeXus_structure(fname.name)
+
+
+def test_nexus_runtime_error(db_all):
+    mds = db_all.mds
+    temperature_ramp.run(mds)
+    hdr = db_all[-1]
+    fname = tempfile.NamedTemporaryFile()
+    if hasattr(hdr, 'db'):
+        nexus.export(hdr, fname.name, db=None)
+    else:
+        with pytest.raises(RuntimeError):
+            nexus.export(hdr, fname.name, db=None)

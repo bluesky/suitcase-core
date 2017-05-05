@@ -107,7 +107,7 @@ def test_hdf5_export_with_fields_single(db_all):
     temperature_ramp.run(mds)
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
-    hdf5.export(hdr, fname.name, fields=['point_dev'], db=db_all)
+    hdf5.export(hdr, fname.name, fields=['point_dev'])#, db=db_all)
     shallow_header_verify(fname.name, hdr, db_all, fields=['point_dev'])
 
 
@@ -136,3 +136,14 @@ def test_hdf5_export_list(db_all):
     hdf5.export(hdrs, fname.name, db=db_all)
     for hdr in hdrs:
         shallow_header_verify(fname.name, hdr, db=db_all)
+
+def test_hdf5_runtime_error(db_all):
+    mds = db_all.mds
+    temperature_ramp.run(mds)
+    hdr = db_all[-1]
+    fname = tempfile.NamedTemporaryFile()
+    if hasattr(hdr, 'db'):
+        hdf5.export(hdr, fname.name, db=None)
+    else:
+        with pytest.raises(RuntimeError):
+            hdf5.export(hdr, fname.name, db=None)
