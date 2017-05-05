@@ -18,10 +18,10 @@ Usage Example
 
 .. code-block:: python
 
-    from databroker import DataBroker as db
+    from databroker import db # the way to import db will be changed later
     from suitcase import hdf5
     last_run = db[-1]
-    hdf5.export(last_run, 'myfile.h5', mds=db.mds)
+    hdf5.export(last_run, 'myfile.h5', db=db)
 
 The first argument may be a single Header or a list of Headers. You can also use keyword "fields"
 in this function to define specifically which data sets you want to output.
@@ -33,7 +33,7 @@ in this function to define specifically which data sets you want to output.
     un_wanted_fields = ['A', 'B', 'C']
     fds = hdf5.filter_fields(hdr, un_wanted_fields)
     filename = 'scanID_123.h5'
-    hdf5.export(hdr, filename, mds=db.mds, fields=fds)
+    hdf5.export(hdr, filename, fields=fds, db=db)
 
 Here I assume A, B, C are keywords for some vector data, like images. You can define them as un_wanted_fields.
 Saving data with scaler data and header information should be very faster. Please also define filename clearly,

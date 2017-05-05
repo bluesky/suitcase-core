@@ -46,7 +46,7 @@ ATTRIBUTE_PREFIX = '_BlueSky_'
 def pick_NeXus_safe_name(supplied):
     '''
     ensure supplied name is consistent with NeXus name recommendations
-    
+
     :see: http://download.nexusformat.org/doc/html/datarules.html#index-2
     '''
     safe = supplied
@@ -60,8 +60,9 @@ def pick_NeXus_safe_name(supplied):
     return safe
 
 
-def export(headers, filename, mds,
-           stream_name=None, fields=None, timestamps=True, use_uid=True):
+def export(headers, filename,
+           stream_name=None, fields=None,
+           timestamps=True, use_uid=True, db=None):
     """
     Create NeXus HDF5 file to preserve the structure of databroker.
 
@@ -71,8 +72,6 @@ def export(headers, filename, mds,
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
-    mds : metadatastore object
-        metadatastore object or alike, like db.mds from databroker
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
@@ -86,6 +85,8 @@ def export(headers, filename, mds,
     use_uid : Bool, optional
         Create group name at hdf file based on uid if this value is set as True.
         Otherwise group name is created based on beamline id and run id.
+    db : databroker object, optional
+        db should be included in hdr.
     """
     if isinstance(headers, Header):
         headers = [headers]
@@ -97,22 +98,26 @@ def export(headers, filename, mds,
         f.attrs['HDF5_Version'] = h5py.version.hdf5_version
 
         for header in headers:
-            header = dict(header)
             try:
-                descriptors = header.pop('descriptors')
+                db = header.db
+            except AttributeError:
+                pass
+            if db is None:
+                raise RuntimeError('db is not defined in header, so we need to input db explicitly.')
+
+            try:
+                descriptors = header.descriptors
             except KeyError:
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
                 continue
-            
+
             if use_uid:
-                proposed_name = header['start']['uid']
+                proposed_name = header.start['uid']
             else:
-                proposed_name = str(header['start']['beamline_id']) 
-                proposed_name += '_' + str(header['start']['scan_id'])
+                proposed_name = 'data_' + str(header.start['scan_id'])
             nxentry = f.create_group(pick_NeXus_safe_name(proposed_name))
             nxentry.attrs["NX_class"] = "NXentry"
-            #header.pop('_name')
             _safe_attrs_assignment(nxentry, header)   # TODO: improve this
 
             if f.attrs.get("default") is None:
@@ -134,10 +139,10 @@ def export(headers, filename, mds,
                     pick_NeXus_safe_name(proposed_name))
                 nxlog.attrs["NX_class"] = "NXlog"
 
-                data_keys = descriptor.pop('data_keys')
+                data_keys = descriptor['data_keys']
 
                 _safe_attrs_assignment(nxlog, descriptor)
-                
+
                 # TODO: possible to create a useful NXinstrument group?
 
                 nxdata = nxentry.create_group(
@@ -145,10 +150,10 @@ def export(headers, filename, mds,
                 nxdata.attrs["NX_class"] = "NXdata"
                 if nxentry.attrs.get("default") is None:
                     nxentry.attrs["default"] = nxdata.name.split("/")[-1]
-                
+
                 '''
                 structure (under nxlog:NXlog):
-                
+
                     [data_keys]
                         @axes = data_key_timestamps
                     [data_keys]_timestamps
@@ -157,7 +162,7 @@ def export(headers, filename, mds,
                 :see: http://download.nexusformat.org/doc/html/classes/base_classes/NXlog.html
                 '''
 
-                events = list(mds.get_events_generator(descriptor))
+                events = list(db.get_events(header, stream_name=descriptor['name']))
                 event_times = np.array([e['time'] for e in events])
                 start = event_times[0]
                 ds = nxlog.create_dataset(
@@ -207,7 +212,7 @@ def export(headers, filename, mds,
                             safename, data=data,
                             compression='gzip', fletcher32=True)
                     dataset.attrs['key_name'] = key
-                    
+
                     # only link to the NXdata group if the data is numerical
                     if value['dtype'] in ('number',):
                         nxdata[safename] = dataset

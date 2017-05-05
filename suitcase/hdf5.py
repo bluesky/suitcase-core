@@ -11,12 +11,15 @@ import numpy as np
 import warnings
 import h5py
 import json
+import copy
 from databroker.databroker import fill_event
 from databroker.core import Header
+import copy
 
 
-def export(headers, filename, mds,
-           stream_name=None, fields=None, timestamps=True, use_uid=True):
+def export(headers, filename,
+           stream_name=None, fields=None,
+           timestamps=True, use_uid=True, db=None):
     """
     Create hdf5 file to preserve the structure of databroker.
 
@@ -26,8 +29,6 @@ def export(headers, filename, mds,
         objects retruned by the Data Broker
     filename : string
         path to a new or existing HDF5 file
-    mds : metadatastore object
-        metadatastore object or alike, like db.mds from databroker
     stream_name : string, optional
         None means save all the data from each descriptor, i.e., user can define stream_name as primary,
         so only data with descriptor.name == primary will be saved.
@@ -41,22 +42,31 @@ def export(headers, filename, mds,
     use_uid : Bool, optional
         Create group name at hdf file based on uid if this value is set as True.
         Otherwise group name is created based on beamline id and run id.
+    db : databroker object, optional
+        db should be included in hdr.
     """
     if isinstance(headers, Header):
         headers = [headers]
+
     with h5py.File(filename) as f:
         for header in headers:
-            header = dict(header)
             try:
-                descriptors = header.pop('descriptors')
+                db = header.db
+            except AttributeError:
+                pass
+            if db is None:
+                raise RuntimeError('db is not defined in header, so we need to input db explicitly.')
+
+            try:
+                descriptors = header.descriptors
             except KeyError:
                 warnings.warn("Header with uid {header.uid} contains no "
                               "data.".format(header), UserWarning)
                 continue
             if use_uid:
-                top_group_name = header['start']['uid']
+                top_group_name = header.start['uid']
             else:
-                top_group_name = str(header['start']['beamline_id']) + '_' + str(header['start']['scan_id'])
+                top_group_name = 'data_' + str(header.start['scan_id'])
             group = f.create_group(top_group_name)
             _safe_attrs_assignment(group, header)
             for i, descriptor in enumerate(descriptors):
@@ -72,11 +82,11 @@ def export(headers, filename, mds,
                 else:
                     desc_group = group.create_group(descriptor['name'])
 
-                data_keys = descriptor.pop('data_keys')
+                data_keys = descriptor['data_keys']
 
                 _safe_attrs_assignment(desc_group, descriptor)
 
-                events = list(mds.get_events_generator(descriptor))
+                events = list(db.get_events(header, stream_name=descriptor['name']))
                 event_times = [e['time'] for e in events]
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)
