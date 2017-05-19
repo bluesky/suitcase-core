@@ -600,7 +600,7 @@ def ingest(fname, fs=None):
                 yield 'event', {
                     'descriptor': sino_uid,
                     'data': data,
-                    'timestamps': {'image': stop_ts},
+                    'timestamps': {'sinogram': stop_ts},
                     'uid': str(uuid.uuid4()),
                     'seq_num': j,
                     'time': stop_ts
