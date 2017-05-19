@@ -357,6 +357,43 @@ class ALSHDF5Handler(HandlerBase):
         return [self._filename]
 
 
+class ALSHDF5SinoHandler(HandlerBase):
+    specs = {'ALS_HDF_SINO'}
+
+    def __init__(self, filename, group, tomo_size, dset_pattern):
+        self._filename = filename
+        self._group_nm = group
+        nangles, self.nslices, nrays = tomo_size
+        self.out_size = (nangles, nrays)
+        self._dset_names = [dset_pattern.format(j)
+                            for j in range(nangles)]
+        self._file = None
+        self._group = None
+
+    def _open(self):
+        if self._file is None or not self._file.id:
+            self._file = h5py.File(self._filename, 'r')
+            self._group = self._file[self._group_nm]
+
+    def close(self):
+        super().close()
+        self._group = None
+        self._file.close()
+        self._file = None
+
+    def __call__(self, slice_indx):
+        if not self._group:
+            self._open()
+        out = np.empty(self.out_size)
+        grp = self._group
+        for j, dset_name in enumerate(self._dset_names):
+            out[j, :] = grp[dset_name][:, slice_indx, :].squeeze()
+        return out
+
+    def get_file_list(self, datum_kwarg_gen):
+        return [self._filename]
+
+
 conversions = {'int': lambda x: int(x.decode().strip()),
                'float': lambda x: float(x.decode().strip()),
                'str': lambda x: x.decode().strip(),
@@ -364,7 +401,7 @@ conversions = {'int': lambda x: int(x.decode().strip()),
 
 
 def ingest(fname, fs=None):
-    '''Injest an ALS tomography to Documents
+    '''Ingest an ALS tomography to Documents
 
     This attempts to separate all of the meta-data in the attributes
     of the top-level group into the Start document, the configuration
@@ -379,13 +416,16 @@ def ingest(fname, fs=None):
     This code makes many assumptions about the keys, attributes,
     naming schemes, and localization of datetimes.  See the code for details.
 
-    This will generate 4 event streams:
+    This will generate 5 event streams:
 
       - primary : the tomographic data
       - baseline : measurements extracted from attrs on the top level group
       - background : background images
       - darkfield : darkfield images
 
+    The fifth is 'synthetic'
+
+      - sinogram : uses a different handler that sources the sinograms
 
     Parameters
     ----------
@@ -462,7 +502,7 @@ def ingest(fname, fs=None):
                         }
 
             if fs is not None:
-                cam_desc['data_keys']['image']['external'] = 'FILESTORE'
+                cam_desc['data_keys']['image']['external'] = 'FILESTORE:'
                 res_uid = fs.insert_resource('ALS_HDF', fname,
                                              {'group': g_name})
             else:
@@ -477,6 +517,38 @@ def ingest(fname, fs=None):
                                      'name': nm,
                                      'uid': uid,
                                      **cam_desc}
+
+            sino_uid = str(uuid.uuid4())
+            sino_desc = {'run_start': st_uid,
+                         'name': 'sinogram',
+                         'uid': sino_uid,
+                         'time': ts,
+                         'object_keys': {'sino': ['singram']},
+                         'data_keys': {
+                             'sinogram': {
+                                 'dtype': 'array',
+                                 'shape': [bundled_dicts['start']['nangles'],
+                                           bundled_dicts['start']['nrays']],
+                                 'source': 'slices of "primary.image"',
+                                 'object_name': 'sino'}
+                             }
+                         }
+            sino_res_kwargs = {'group': g_name,
+                               'tomo_size': [bundled_dicts['start']['nangles'],
+                                             bundled_dicts['start']['nslices'],
+                                             bundled_dicts['start']['nrays']],
+                               'dset_pattern':
+                               '{}_0000_{{:04d}}.tif'.format(base_name)}
+            if fs is not None:
+                sino_desc['data_keys']['sinogram']['external'] = 'FILESTORE:'
+                sino_res_uid = fs.insert_resource('ALS_HDF_SINO',
+                                                  fname,
+                                                  sino_res_kwargs)
+            else:
+                sino_res_uid = None
+
+            yield 'descriptor', sino_desc
+
             c = re.compile(
                 '{}(drk|bak|)_[0-9]{{4}}_[0-9]{{4}}\.tif'.format(base_name))
             uid_map = {'': primary_uid,
@@ -508,6 +580,32 @@ def ingest(fname, fs=None):
                     'seq_num': next(counters[s_type]),
                     'time': ev_ts
                 }
+
+            if sino_res_uid is None:
+                h = ALSHDF5SinoHandler(None, **sino_res_kwargs)
+                h._file = fin
+                h._group = grp
+
+                def data_factory(j):
+                    return {'sinogram': h(j)}
+            else:
+                def data_factory(j):
+                    s_uid = str(uuid.uuid4())
+                    fs.insert_datum(sino_res_uid, s_uid,
+                                    {'slice_indx': j})
+                    return {'sinogram': s_uid}
+
+            for j in range(bundled_dicts['start']['nslices']):
+                data = data_factory(j)
+                yield 'event', {
+                    'descriptor': sino_uid,
+                    'data': data,
+                    'timestamps': {'image': stop_ts},
+                    'uid': str(uuid.uuid4()),
+                    'seq_num': j,
+                    'time': stop_ts
+                    }
+
             # use the last event timestamp as the stop time
             yield 'stop', {'run_start': st_uid,
                            'time': stop_ts,
