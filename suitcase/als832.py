@@ -11,7 +11,6 @@ import numpy as np
 
 from filestore.handlers_base import HandlerBase
 
-
 _ALS_KEY_MAP = {'scanner': 'start',
                 'object': 'start',
                 'archdir': 'start',
@@ -167,7 +166,6 @@ _ALS_KEY_MAP = {'scanner': 'start',
                 'postImageDelay': 'descriptor',
                 'Camera_Z_Support': 'event',
                 'blur_limit': 'descriptor'}
-
 
 key_type_map = {
     'scanner': 'str',
@@ -444,7 +442,7 @@ def ingest(fname, fs=None):
                 'descriptor': {},
                 'event': {}}
             for k, v in grp.attrs.items():
-                v = conversions[key_type_map.get(k, 'string')](v)
+                v = conversions[key_type_map.get(k, 'str')](v)
                 bundled_dicts[_ALS_KEY_MAP.get(k, 'start')][k] = v
             st_uid = str(uuid.uuid4())
 
@@ -482,9 +480,9 @@ def ingest(fname, fs=None):
                 'data': cam_config_data,
                 'data_keys': {k: _data_keys_from_value(
                     v, 'ALS top-level group attrs', '')
-                              for k, v in cam_config_data.items()},
+                    for k, v in cam_config_data.items()},
                 'timestamps': {k: ts for k in cam_config_data}}
-                          }
+            }
             shp = [bundled_dicts['start']['nslices'],
                    bundled_dicts['start']['nrays']]
 
@@ -498,7 +496,7 @@ def ingest(fname, fs=None):
                                       'source': 'ALS {}'.format(cam_name),
                                       'object_name': cam_name,
                                       }
-                                      }
+                        }
                         }
 
             if fs is not None:
@@ -531,14 +529,14 @@ def ingest(fname, fs=None):
                                            bundled_dicts['start']['nrays']],
                                  'source': 'slices of "primary.image"',
                                  'object_name': 'sino'}
-                             }
+                         }
                          }
             sino_res_kwargs = {'group': g_name,
                                'tomo_size': [bundled_dicts['start']['nangles'],
                                              bundled_dicts['start']['nslices'],
                                              bundled_dicts['start']['nrays']],
                                'dset_pattern':
-                               '{}_0000_{{:04d}}.tif'.format(base_name)}
+                                   '{}_0000_{{:04d}}.tif'.format(base_name)}
             if fs is not None:
                 sino_desc['data_keys']['sinogram']['external'] = 'FILESTORE:'
                 sino_res_uid = fs.insert_resource('ALS_HDF_SINO',
@@ -604,7 +602,7 @@ def ingest(fname, fs=None):
                     'uid': str(uuid.uuid4()),
                     'seq_num': j,
                     'time': stop_ts
-                    }
+                }
 
             # use the last event timestamp as the stop time
             yield 'stop', {'run_start': st_uid,
@@ -625,7 +623,6 @@ def _data_keys_from_value(v, src_name, object_name):
 
 
 def _gen_descriptor_from_dict(ev_data, src_name):
-
     data_keys = {}
     confiuration = {}
     obj_keys = {}
