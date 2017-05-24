@@ -249,13 +249,10 @@ class ALSEDFHandler(HandlerBase):
         self._file = None
 
     def __call__(self, *args, **kwargs):
-        print('called:', args, kwargs)
-        # if not self._file:
-        #     self._open()
-        # return self._group[dset_name][:].squeeze()
-        #
-        # def get_file_list(self, datum_kwarg_gen):
-        #     return [self._filename]
+        if not self._file:
+             self._open()
+        return self._file.data
+
 
 
 def register_fabioclass(cls):
@@ -355,7 +352,6 @@ def ingest(fname, fs=None):
         'descriptor': {},
         'event': {}}
     for k, v in fin.header.items():
-        print(k, v)
         v = conversions[key_type_map.get(k, 'str')](v)
         bundled_dicts[_ALS_KEY_MAP.get(k, 'start')][k] = v
     st_uid = str(uuid.uuid4())
@@ -367,6 +363,7 @@ def ingest(fname, fs=None):
         '%a %b %d %H:%M:%S %Y')).timestamp()
     yield 'start', {'uid': st_uid,
                     'time': ts,
+                    'sample_name': os.path.basename(fname),
                     **bundled_dicts['start']}
 
     # generate descriptor + event for 'baseline' measurements
@@ -423,18 +420,19 @@ def ingest(fname, fs=None):
     else:
         data = {'image': fabio.open(fname).data.squeeze()}
 
-    yield 'event', {'descriptor': bl_desc['uid'],
+    desc_uid = str(uuid.uuid4())
+
+    yield 'event', {'descriptor': desc_uid,
                     'timestamps': {k: ts for k in bl_ev_data},
                     'data': data,
                     'time': ts,
                     'seq_num': 1,
                     'uid': str(uuid.uuid4())}
 
-    uid = str(uuid.uuid4())
     yield 'descriptor', {'run_start': st_uid,
                          'name': 'primary',
                          'data': bundled_dicts['event'],
-                         'uid': uid,
+                         'uid': desc_uid,
                          **cam_desc}
 
     # use the last event timestamp as the stop time
