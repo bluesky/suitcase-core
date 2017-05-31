@@ -19,7 +19,8 @@ import copy
 
 def export(headers, filename,
            stream_name=None, fields=None,
-           timestamps=True, use_uid=True, db=None):
+           timestamps=True, use_uid=True,
+           filter_cb=None, db=None):
     """
     Create hdf5 file to preserve the structure of databroker.
 
@@ -42,6 +43,8 @@ def export(headers, filename,
     use_uid : Bool, optional
         Create group name at hdf file based on uid if this value is set as True.
         Otherwise group name is created based on beamline id and run id.
+    filter_cb : callbacks, optional
+        callbacks function to update docs, such as data rebinning
     db : databroker object, optional
         db should be included in hdr.
     """
@@ -76,6 +79,8 @@ def export(headers, filename,
                     if descriptor['name'] != stream_name:
                         continue
                 descriptor.pop('_name', None)
+                if filter_cb is not None:
+                    descriptor = filter_cb('descriptor', descriptor)
 
                 if use_uid:
                     desc_group = group.create_group(descriptor['uid'])
@@ -95,6 +100,9 @@ def export(headers, filename,
                     ts_group = desc_group.create_group('timestamps')
                 [fill_event(e) for e in events]
 
+                if filter_cb is not None:
+                    events = filter_cb('event', events)
+                
                 for key, value in data_keys.items():
                     if fields is not None:
                         if key not in fields:
