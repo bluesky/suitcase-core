@@ -75,6 +75,7 @@ def export(headers, filename,
             for i, descriptor in enumerate(descriptors):
                 # make sure it's a dictionary and trim any spurious keys
                 descriptor = dict(descriptor)
+
                 if stream_name:
                     if descriptor['name'] != stream_name:
                         continue
@@ -102,7 +103,7 @@ def export(headers, filename,
 
                 if filter_cb is not None:
                     events = filter_cb('event', events)
-                
+
                 for key, value in data_keys.items():
                     if fields is not None:
                         if key not in fields:
