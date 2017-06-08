@@ -13,112 +13,117 @@ import re
 import numpy as np
 
 from filestore.handlers_base import HandlerBase
-
-_ALS_KEY_MAP = {'HeaderID': 'start',
-                'Image': 'event',
-                'VersionNumber': 'start',
+# start -> start document
+# event -> baseline reading
+# scatter_event -> merge with detector data
+# descriptor -> camera configuration
+_ALS_KEY_MAP = {
+                'ABS(Vertical Beam Position)': 'event',
+                'AI Channel 6': 'event',
+                'AI Channel 7': 'event',
+                'AIs': 'event',
+                'AO Waveform': 'event',
+                'Alpha_scan_I0_intensities': 'event',
+                'Alpha_scan_I1_intensities': 'event',
+                'Alpha_scan_diode_intensities': 'event',
+                'Alpha_scan_positions': 'event',
+                'Beam Current Over Threshold': 'scatter_event',
+                'Beam Current': 'scatter_event',
+                'Beamline Pass Beam AI': 'event',
+                'Beamline Pass Beam': 'event',
+                'Beamline Shutter AI': 'event',
+                'Beamline Shutter Closed': 'event',
+                'Beamline Shutter Open': 'event',
+                'Beamstop X': 'event',
+                'Beamstop Y': 'event',
+                'Bruker pulses': 'event',
                 'ByteOrder': 'start',
+                'DIOs': 'event',
                 'DataType': 'start',
-                'Dim_1': 'event',
-                'Dim_2': 'event',
-                'Size': 'event',
                 'Date': 'start',
-                'count_time': 'event',
-                'title': 'event',
-                'run': 'event',
-                'Keyless value #1': 'event',
-                'Keyless value #2': 'event',
-                'Keyless value #3': 'event',
-                'Motors': 'event',
-                'Sample X Stage': 'event',
-                'Sample Y Stage': 'event',
-                'Sample Thickness Stage': 'event',
-                'Sample X Stage Fine': 'event',
-                'Sample Alpha Stage': 'event',
-                'Sample Phi Stage': 'event',
-                'M201 Feedback': 'event',
-                'M1 Pitch': 'event',
-                'Sample Rotation Stage': 'event',
-                'M1 Bend': 'event',
-                'Detector Horizontal': 'event',
-                'Detector Vertical': 'event',
-                'Slit1 top': 'event',
-                'Slit1 bottom': 'event',
-                'Slit1 right': 'event',
-                'Slit1 left': 'event',
-                'Exit Slit top': 'event',
+                'Detector Horizontal': 'scatter_event',
+                'Detector Left Motor': 'scatter_event',
+                'Detector Right Motor': 'scatter_event',
+                'Detector Vertical': 'scatter_event',
+                'Dim_1': 'descriptor',
+                'Dim_2': 'descriptor',
+                'EZ fast tension stage': 'event',
                 'Exit Slit bottom': 'event',
                 'Exit Slit left': 'event',
                 'Exit Slit right': 'event',
-                'GIWAXS beamstop X': 'event',
-                'GIWAXS beamstop Y': 'event',
-                'Beamstop X': 'event',
-                'Beamstop Y': 'event',
-                'Detector Right Motor': 'event',
-                'Detector Left Motor': 'event',
-                'Motorized Lab Jack': 'event',
-                'M1 Alignment Tune': 'event',
-                'EZ fast tension stage': 'event',
-                'Motorized Lab Jack1': 'event',
-                'Sample Rotation Stage ESP': 'event',
-                'Printing motor': 'event',
-                'GIWAXS beamstop Y thorlabs': 'event',
-                'Sample Y Stage Arthur': 'event',
+                'Exit Slit top': 'event',
+                'Feedback Interlock': 'event',
                 'Flight Tube Horizontal': 'event',
                 'Flight Tube Vertical': 'event',
-                'Hacked Ager Stage': 'event',
-                'Sample Rotation Stage Miller': 'event',
-                'Mono Angle': 'event',
-                'Xtal2 Pico 1 Feedback': 'event',
-                'Xtal2 Pico 2 Feedback': 'event',
-                'Xtal2 Pico 3 Feedback': 'event',
-                'Xtal2 Pico 1': 'event',
-                'Xtal2 Pico 2': 'event',
-                'Xtal2 Pico 3': 'event',
-                'Sample Y Stage_old': 'event',
-                'AO Waveform': 'event',
-                'DIOs': 'event',
-                'SAXS Protector': 'event',
-                'Beamline Shutter Closed': 'event',
-                'Beam Current Over Threshold': 'event',
-                'Slit 1 in Position': 'event',
-                'Slit 2 in Position': 'event',
-                'Temp Beamline Shutter Open': 'event',
-                'Beamline Shutter Open': 'event',
-                'Feedback Interlock': 'event',
-                'Beamline Pass Beam': 'event',
+                'GIWAXS beamstop X': 'event',
+                'GIWAXS beamstop Y thorlabs': 'event',
+                'GIWAXS beamstop Y': 'event',
                 'Gate Shutter': 'event',
-                'Bruker pulses': 'event',
-                'Slit Top Good': 'event',
-                'Slit Bottom Good': 'event',
-                'AIs': 'event',
-                'Beam Current': 'event',
-                'Beamline Shutter AI': 'event',
-                'Beamline Pass Beam AI': 'event',
-                'slit1 bottom current': 'event',
-                'slit1 top current': 'event',
+                'Gate': 'event',
+                'GiSAXS Beamstop Counter': 'event',
                 'GiSAXS Beamstop': 'event',
-                'Izero AI': 'event',
+                'Hacked Ager Stage': 'event',
+                'HeaderID': 'start',
                 'I1 AI': 'event',
+                'I1': 'event',
+                'Image': 'scatter_event',
+                'Izero AI': 'event',
+                'Izero': 'event',
+                'Keyless value #1': 'event',
+                'Keyless value #2': 'event',
+                'Keyless value #3': 'event',
+                'Kramer strain data': 'event',
+                'M1 Alignment Tune': 'event',
+                'M1 Bend': 'event',
+                'M1 Pitch': 'event',
+                'M201 Feedback': 'event',
+                'Mono Angle': 'event',
+                'Motorized Lab Jack': 'event',
+                'Motorized Lab Jack1': 'event',
+                'Motors': 'event',
+                'PCO Invert': 'event',
                 'PHI Alignment Beamstop': 'event',
-                'AI Channel 6': 'event',
-                'AI Channel 7': 'event',
-                'Vertical Beam Position': 'event',
+                'Pilatus 100K exp out': 'event',
                 'Pilatus 1M Trigger Pulse': 'event',
                 'Pilatus 300KW trigger pulse': 'event',
-                'PCO Invert': 'event',
-                'Gate': 'event',
-                'Izero': 'event',
-                'I1': 'event',
-                'GiSAXS Beamstop Counter': 'event',
+                'Printing motor': 'event',
+                'SAXS Protector': 'event',
+                'Sample Alpha Stage': 'event',
+                'Sample Phi Stage': 'event',
+                'Sample Rotation Stage ESP': 'event',
+                'Sample Rotation Stage Miller': 'event',
+                'Sample Rotation Stage': 'event',
+                'Sample Thickness Stage': 'event',
+                'Sample X Stage Fine': 'event',
+                'Sample X Stage': 'event',
+                'Sample Y Stage Arthur': 'event',
+                'Sample Y Stage': 'event',
+                'Sample Y Stage_old': 'event',
+                'Size': 'descriptor',
+                'Slit 1 in Position': 'event',
+                'Slit 2 in Position': 'event',
+                'Slit Bottom Good': 'event',
+                'Slit Top Good': 'event',
+                'Slit1 bottom': 'event',
+                'Slit1 left': 'event',
+                'Slit1 right': 'event',
+                'Slit1 top': 'event',
                 'Sum of Slit Current': 'event',
-                'Pilatus 100K exp out': 'event',
-                'Kramer strain data': 'event',
-                'ABS(Vertical Beam Position)': 'event',
-                'Alpha_scan_positions': 'event',
-                'Alpha_scan_I0_intensities': 'event',
-                'Alpha_scan_I1_intensities': 'event',
-                'Alpha_scan_diode_intensities': 'event'}
+                'Temp Beamline Shutter Open': 'event',
+                'VersionNumber': 'start',
+                'Vertical Beam Position': 'event',
+                'Xtal2 Pico 1 Feedback': 'event',
+                'Xtal2 Pico 1': 'event',
+                'Xtal2 Pico 2 Feedback': 'event',
+                'Xtal2 Pico 2': 'event',
+                'Xtal2 Pico 3 Feedback': 'event',
+                'Xtal2 Pico 3': 'event',
+                'count_time': 'descriptor',
+                'run': 'event',
+                'slit1 bottom current': 'event',
+                'slit1 top current': 'event',
+                'title': 'event',
+}
 
 key_type_map = {'HeaderID': 'str',
                 'Image': 'int',
@@ -340,7 +345,8 @@ def ingest(fname, fs=None):
     bundled_dicts = {
         'start': {},
         'descriptor': {},
-        'event': {}}
+        'event': {},
+        'scatter_event': {}}
     for k, v in fin.header.items():
         v = conversions[key_type_map.get(k, 'str')](v)
         bundled_dicts[_ALS_KEY_MAP.get(k, 'start')][k] = v
@@ -360,6 +366,16 @@ def ingest(fname, fs=None):
     bl_ev_data = bundled_dicts['event']
     bl_desc = _gen_descriptor_from_dict(bl_ev_data,
                                         'ALS top-level group attrs')
+    yield 'descriptor', {'run_start': st_uid,
+                         'name': 'baseline',
+                         **bl_desc}
+
+    yield 'event', {'descriptor': bl_desc['uid'],
+                    'timestamps': {k: ts for k in bl_ev_data},
+                    'data': bundled_dicts['event'],
+                    'time': ts,
+                    'seq_num': 1,
+                    'uid': str(uuid.uuid4())}
 
     # generate documents for slices + bk + dark
     if fin.header['Dim_1'] == '1475' and fin.header['Dim_2'] == '1679':
@@ -394,7 +410,6 @@ def ingest(fname, fs=None):
                               }
                 }
                 }
-
     if fs is not None:
         cam_desc['data_keys']['image']['external'] = 'FILESTORE:'
         res_uid = fs.insert_resource('ALS_EDF', fname, {})
@@ -410,20 +425,27 @@ def ingest(fname, fs=None):
     else:
         data = {'image': fabio.open(fname).data.squeeze()}
 
+    header_data_for_scatter_event = bundled_dicts['scatter_event']
+    data.update(header_data_for_scatter_event)
+    header_scatter_desc = _gen_descriptor_from_dict(
+        header_data_for_scatter_event,
+        'ALS top-level group attrs')
+    for k in ('object_keys', 'data_keys', 'configuration'):
+        cam_desc[k].update(header_scatter_desc[k])
+
     desc_uid = str(uuid.uuid4())
 
+    yield 'descriptor', {'run_start': st_uid,
+                         'name': 'primary',
+                         'uid': desc_uid,
+                         **cam_desc}
+
     yield 'event', {'descriptor': desc_uid,
-                    'timestamps': {k: ts for k in bl_ev_data},
+                    'timestamps': {'image': ts},
                     'data': data,
                     'time': ts,
                     'seq_num': 1,
                     'uid': str(uuid.uuid4())}
-
-    yield 'descriptor', {'run_start': st_uid,
-                         'name': 'primary',
-                         'data': bundled_dicts['event'],
-                         'uid': desc_uid,
-                         **cam_desc}
 
     # use the last event timestamp as the stop time
     yield 'stop', {'run_start': st_uid,
