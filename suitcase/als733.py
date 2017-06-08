@@ -243,6 +243,7 @@ class ALSEDFHandler(HandlerBase):
     def _open(self):
         if self._file is None or not self._file.id:
             self._file = fabio.open(self._filename)
+        return self
 
     def close(self):
         super().close()
