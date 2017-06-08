@@ -250,9 +250,8 @@ class ALSEDFHandler(HandlerBase):
 
     def __call__(self, *args, **kwargs):
         if not self._file:
-             self._open()
+            self._open()
         return self._file.data
-
 
 
 def register_fabioclass(cls):
@@ -324,16 +323,6 @@ def ingest(fname, fs=None):
     This code makes many assumptions about the keys, attributes,
     naming schemes, and localization of datetimes.  See the code for details.
 
-    This will generate 5 event streams:
-
-      - primary : the tomographic data
-      - baseline : measurements extracted from attrs on the top level group
-      - background : background images
-      - darkfield : darkfield images
-
-    The fifth is 'synthetic'
-
-      - sinogram : uses a different handler that sources the sinograms
 
     Parameters
     ----------
