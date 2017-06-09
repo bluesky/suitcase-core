@@ -313,7 +313,7 @@ class EdfImage(edfimage.EdfImage):
         return paras
 
 
-def ingest(fname, fs=None):
+def ingest(fnames, fs=None):
     '''Ingest an ALS scattering edf to Documents
 
     This attempts to separate all of the meta-data in the attributes
@@ -339,45 +339,57 @@ def ingest(fname, fs=None):
         FileStore instance to record resources / datums.
 
     '''
-    fin = fabio.open(fname)
+    # TODO also support Path
+    if isinstance(fnames, str):
+        fnames = [fnames]
+
+    fins = [fabio.open(fname) for fname in fnames]
 
     # use dict getitem to handle dispatch logic
-    bundled_dicts = {
-        'start': {},
-        'descriptor': {},
-        'event': {},
-        'scatter_event': {}}
-    for k, v in fin.header.items():
-        v = conversions[key_type_map.get(k, 'str')](v)
-        bundled_dicts[_ALS_KEY_MAP.get(k, 'start')][k] = v
+    file_header_data = []
+    for fin in fins:
+        header_data = {
+            'start': {},
+            'descriptor': {},
+            'event': {},
+            'scatter_event': {}}
+        for k, v in fin.header.items():
+            v = conversions[key_type_map.get(k, 'str')](v)
+            header_data[_ALS_KEY_MAP.get(k, 'start')][k] = v
+        file_header_data.append(header_data)
+    del header_data
+    start_md = {}
+    # TODO check for conflicts and resolve better
+    [start_md.update(h_md['start']) for h_md in file_header_data[::-1]]
+
     st_uid = str(uuid.uuid4())
 
     # localize the timestamp
     tz = pytz.timezone('America/Los_Angeles')
     ts = tz.localize(datetime.strptime(
-        bundled_dicts['start']['Date'],
+        file_header_data[0]['start']['Date'],
         '%a %b %d %H:%M:%S %Y')).timestamp()
     yield 'start', {'uid': st_uid,
                     'time': ts,
-                    'sample_name': os.path.basename(fname),
-                    **bundled_dicts['start']}
+                    'sample_name': os.path.basename(fnames[0]),
+                    **start_md}
 
     # generate descriptor + event for 'baseline' measurements
-    bl_ev_data = bundled_dicts['event']
-    bl_desc = _gen_descriptor_from_dict(bl_ev_data,
+    bl_desc = _gen_descriptor_from_dict(file_header_data[0]['event'],
                                         'ALS top-level group attrs')
     yield 'descriptor', {'run_start': st_uid,
                          'name': 'baseline',
                          **bl_desc}
+    for hd in file_header_data:
+        yield 'event', {'descriptor': bl_desc['uid'],
+                        'timestamps': {k: ts for k in hd['event']},
+                        'data': hd['event'],
+                        'time': ts,
+                        'seq_num': 1,
+                        'uid': str(uuid.uuid4())}
 
-    yield 'event', {'descriptor': bl_desc['uid'],
-                    'timestamps': {k: ts for k in bl_ev_data},
-                    'data': bundled_dicts['event'],
-                    'time': ts,
-                    'seq_num': 1,
-                    'uid': str(uuid.uuid4())}
-
-    # generate documents for slices + bk + dark
+    # guess the camera from the first file
+    fin = fins[0]
     if fin.header['Dim_1'] == '1475' and fin.header['Dim_2'] == '1679':
         cam_name = 'Pilatus 2M'
     elif fin.header['Dim_1'] == '981' and fin.header['Dim_2'] == '1043':
@@ -388,7 +400,10 @@ def ingest(fname, fs=None):
         cam_name = 'Pilatus 300k'
     else:
         cam_name = ''
-    cam_config_data = bundled_dicts['descriptor']
+    # generate documents for slices + bk + dark
+
+    # TODO deal with conflicts, for now just take the first one
+    cam_config_data = file_header_data[0]['descriptor']
     cam_config = {cam_name: {
         'data': cam_config_data,
         'data_keys': {k: _data_keys_from_value(
@@ -412,40 +427,43 @@ def ingest(fname, fs=None):
                 }
     if fs is not None:
         cam_desc['data_keys']['image']['external'] = 'FILESTORE:'
-        res_uid = fs.insert_resource('ALS_EDF', fname, {})
+        res_uids = [fs.insert_resource('ALS_EDF', fname, {})
+                    for fname in fnames]
     else:
-        res_uid = None
-
-    dset_name = fname
-
-    if res_uid is not None:
-        d_uid = str(uuid.uuid4())
-        fs.insert_datum(res_uid, d_uid, {'dset_name': dset_name})
-        data = {'image': d_uid}
-    else:
-        data = {'image': fabio.open(fname).data.squeeze()}
-
-    header_data_for_scatter_event = bundled_dicts['scatter_event']
-    data.update(header_data_for_scatter_event)
+        res_uids = [None] * len(fnames)
     header_scatter_desc = _gen_descriptor_from_dict(
-        header_data_for_scatter_event,
+        file_header_data[0]['scatter_event'],
         'ALS top-level group attrs')
+
     for k in ('object_keys', 'data_keys', 'configuration'):
         cam_desc[k].update(header_scatter_desc[k])
 
     desc_uid = str(uuid.uuid4())
-
     yield 'descriptor', {'run_start': st_uid,
                          'name': 'primary',
                          'uid': desc_uid,
                          **cam_desc}
+    for fname, res_uid, bundled_dicts in zip(
+            fnames, res_uids, file_header_data):
 
-    yield 'event', {'descriptor': desc_uid,
-                    'timestamps': {'image': ts},
-                    'data': data,
-                    'time': ts,
-                    'seq_num': 1,
-                    'uid': str(uuid.uuid4())}
+        dset_name = fname
+
+        if res_uid is not None:
+            d_uid = str(uuid.uuid4())
+            fs.insert_datum(res_uid, d_uid, {'dset_name': dset_name})
+            data = {'image': d_uid}
+        else:
+            data = {'image': fabio.open(fname).data.squeeze()}
+
+        header_data_for_scatter_event = bundled_dicts['scatter_event']
+        data.update(header_data_for_scatter_event)
+
+        yield 'event', {'descriptor': desc_uid,
+                        'timestamps': {'image': ts},
+                        'data': data,
+                        'time': ts,
+                        'seq_num': 1,
+                        'uid': str(uuid.uuid4())}
 
     # use the last event timestamp as the stop time
     yield 'stop', {'run_start': st_uid,
