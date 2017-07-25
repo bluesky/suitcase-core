@@ -9,7 +9,7 @@ import re
 
 import numpy as np
 
-from filestore.handlers_base import HandlerBase
+from databroker.resource_registry.handlers_base import HandlerBase
 
 _ALS_KEY_MAP = {'scanner': 'start',
                 'object': 'start',

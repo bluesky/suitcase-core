@@ -12,7 +12,7 @@ import re
 
 import numpy as np
 
-from filestore.handlers_base import HandlerBase
+from databroker.resource_registry.handlers_base import HandlerBase
 # start -> start document
 # event -> baseline reading
 # scatter_event -> merge with detector data
