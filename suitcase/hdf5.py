@@ -12,7 +12,6 @@ import warnings
 import h5py
 import json
 import copy
-from databroker.databroker import fill_event
 from databroker.core import Header
 import copy
 
@@ -93,7 +92,7 @@ def export(headers, filename,
                 data_group = desc_group.create_group('data')
                 if timestamps:
                     ts_group = desc_group.create_group('timestamps')
-                [fill_event(e) for e in events]
+                [db.fill_event(e) for e in events]
 
                 for key, value in data_keys.items():
                     if fields is not None:

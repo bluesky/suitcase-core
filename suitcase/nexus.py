@@ -36,7 +36,6 @@ import re
 import time
 import datetime
 import dateutil.parser
-from databroker.databroker import fill_event
 from databroker.core import Header
 
 # prefix attribute names so we do not accidentally use a NeXus reserved name
@@ -171,7 +170,7 @@ def export(headers, filename,
                 datetime_string = time.asctime(time.gmtime(start))
                 ds.attrs['start'] = dateutil.parser.parse(datetime_string).isoformat()
 
-                [fill_event(e) for e in events]
+                [db.fill_event(e) for e in events]
 
                 for key, value in data_keys.items():
                     if fields is not None:
