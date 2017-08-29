@@ -36,7 +36,7 @@ import re
 import time
 import datetime
 import dateutil.parser
-from databroker.core import Header
+from databroker import Header
 
 # prefix attribute names so we do not accidentally use a NeXus reserved name
 ATTRIBUTE_PREFIX = '_BlueSky_'

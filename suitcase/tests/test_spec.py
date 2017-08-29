@@ -7,8 +7,7 @@ import tempfile
 
 import event_model
 import pytest
-from databroker.broker import Broker
-from databroker.core import Header
+from databroker import Header
 from suitcase import spec
 
 stream_handler = logging.StreamHandler()
@@ -93,8 +92,6 @@ def test_spec_to_document(sf, db_all, scan_ids):
         'event': db_all.mds.insert_event
     }
     start_uids = list()
-
-    #db_all = Broker(mds_all, fs=None)
 
     for document_name, document in spec.spec_to_document(
             sf, scan_ids=scan_ids, validate=True, db=db_all):
@@ -188,32 +185,26 @@ def test_round_trip_from_run_engine(db_all):
     except ImportError as ie:
         raise pytest.skip('ImportError: {0}'.format(ie))
     # generate a new specfile
+    from bluesky.plans import count, scan, relative_scan, outer_product_scan
     from bluesky.tests.utils import setup_test_run_engine
     from bluesky.examples import motor, det, motor1
-    from bluesky.global_state import gs
-    from bluesky.spec_api import dscan, ascan, ct, a2scan
     RE = setup_test_run_engine()
-    fname = tempfile.NamedTemporaryFile().name
+    fcreate = tempfile.NamedTemporaryFile()
+    fname = fcreate.name
     cb = spec.DocumentToSpec(fname)
     RE.subscribe('all', cb)
-    gs.DETS = [det]
-    RE(dscan(motor, -1, 1, 10))
-    RE(ascan(motor, -1, 1, 10))
+    RE(scan([det], motor, -1, 1, 10))
+    RE(relative_scan([det], motor, -1, 1, 10))
     # add count to hit some lines in
     #   suitcase.spec:_get_motor_name
     #   suitcase.spec:_get_motor_position
     #   suitcase.spec:_get_plan_type
-    RE(ct())
+    RE(count([det]))
 
-    RE(a2scan(motor, -1, 1, motor1, -1, 1, 10))
+    RE(outer_product_scan([det], motor, -1, 1, 10, motor1, -1, 1, 10, True))
 
+    #with pytest.raises(NotImplementedError):
     sf = spec.Specfile(fname)
-    sf1 = _round_trip(sf, db_all)
-
-    # a2scan is not round trippable
-    num_unconvertable_scans = 1
-
-    assert len(sf) == (len(sf1) + num_unconvertable_scans)
 
 
 def test_insert_specscan(spec_filename, db_all):

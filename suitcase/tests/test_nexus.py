@@ -1,5 +1,4 @@
 from metadatastore.examples.sample_data import temperature_ramp
-from databroker import Broker
 from suitcase import nexus
 import tempfile
 import h5py

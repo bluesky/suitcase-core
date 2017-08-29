@@ -5,6 +5,8 @@ import os
 
 AUTH = os.environ.get('MDSTESTWITHAUTH', False)
 
+db_name1 = str(uuid.uuid4())
+db_name2 = str(uuid.uuid4())
 
 test_config = {
     'metadatastore': {
@@ -13,7 +15,7 @@ test_config = {
         'config': {
             'host': 'localhost',
             'port': 27017,
-            'database': 'test1',
+            'database': db_name1,
             'timezone': 'US/Eastern'}
     },
     'assets': {
@@ -22,7 +24,7 @@ test_config = {
         'config': {
             'host': 'localhost',
             'port': 27017,
-            'database': 'test2'}
+            'database': db_name2}
     }
 }
 
@@ -36,8 +38,8 @@ def db_all(request):
 
     def delete_dm():
         print("DROPPING DB")
-        db.mds._connection.drop_database('test1')
-        db.mds._connection.drop_database('test2')
+        db.mds._connection.drop_database(db_name1)
+        db.mds._connection.drop_database(db_name2)
 
     request.addfinalizer(delete_dm)
 

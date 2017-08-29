@@ -12,7 +12,7 @@ import warnings
 import h5py
 import json
 import copy
-from databroker.core import Header
+from databroker import Header
 import copy
 
 
