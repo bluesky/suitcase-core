@@ -80,7 +80,7 @@ spec_line_parser = {
            lambda x: datetime.fromtimestamp(int(x))),
     '#F': ('filename', str),
     # The exposure time
-    '#N': ('num_points', int),
+    '#N': ('num_intervals', int),
     # The h, k, l coordinates
     '#Q': ('hkl', lambda x: [float(s) for s in x.split(' ')]),
     '#T': ('exposure_time', lambda x: float(x.split('  ')[0])),
