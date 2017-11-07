@@ -182,17 +182,15 @@ def test_round_trip_from_specfile(spec_filename, db_all):
     assert len(sf2) > 0
 
 
-def test_round_trip_from_run_engine(db_all):
+def test_round_trip_from_run_engine(db_all, RE):
     try:
         import bluesky
     except ImportError as ie:
         raise pytest.skip('ImportError: {0}'.format(ie))
     # generate a new specfile
-    from bluesky.tests.utils import setup_test_run_engine
     from bluesky.examples import motor, det, motor1
     from bluesky.global_state import gs
     from bluesky.spec_api import dscan, ascan, ct, a2scan
-    RE = setup_test_run_engine()
     fname = tempfile.NamedTemporaryFile().name
     cb = spec.DocumentToSpec(fname)
     RE.subscribe('all', cb)
