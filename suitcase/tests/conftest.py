@@ -1,5 +1,6 @@
 import uuid
 import pytest
+from bluesky.tests.conftest import RE
 from databroker import Broker
 import os
 

@@ -150,7 +150,9 @@ def test_lt(spec_filename):
 
 def _round_trip(specfile_object, db_all, new_specfile_name=None):
     if new_specfile_name is None:
-        new_specfile_name = tempfile.NamedTemporaryFile().name
+        #new_specfile_name = tempfile.NamedTemporaryFile().name
+        specfile_create = tempfile.NamedTemporaryFile()
+        new_specfile_name = specfile_create.name
 
     document_stream = spec.spec_to_document(specfile_object, db=db_all)
     cb = spec.DocumentToSpec(new_specfile_name)
@@ -179,21 +181,19 @@ def test_round_trip_from_specfile(spec_filename, db_all):
     assert len(sf2) > 0
 
 
-def test_round_trip_from_run_engine(db_all):
+def test_round_trip_from_run_engine(db_all, RE):
     try:
         import bluesky
     except ImportError as ie:
         raise pytest.skip('ImportError: {0}'.format(ie))
     # generate a new specfile
-    from bluesky.plans import count, scan, relative_scan, outer_product_scan
-    from bluesky.tests.utils import setup_test_run_engine
+    from bluesky.plans import count, scan, relative_scan, inner_product_scan
     from bluesky.examples import motor, det, motor1
-    RE = setup_test_run_engine()
-    fcreate = tempfile.NamedTemporaryFile()
-    fname = fcreate.name
+    fname = tempfile.NamedTemporaryFile().name
+    #fname = fcreate.name
     cb = spec.DocumentToSpec(fname)
     RE.subscribe('all', cb)
-    RE(scan([det], motor, -1, 1, 10))
+    RE(scan([det], motor, -1, 1, 10), owner="Tom")
     RE(relative_scan([det], motor, -1, 1, 10))
     # add count to hit some lines in
     #   suitcase.spec:_get_motor_name
@@ -201,10 +201,16 @@ def test_round_trip_from_run_engine(db_all):
     #   suitcase.spec:_get_plan_type
     RE(count([det]))
 
-    RE(outer_product_scan([det], motor, -1, 1, 10, motor1, -1, 1, 10, True))
+    RE(inner_product_scan([det], 10, motor, -1, 1, motor1, -1, 1))
 
     #with pytest.raises(NotImplementedError):
     sf = spec.Specfile(fname)
+    sf1 = _round_trip(sf, db_all)
+
+    # a2scan is not round trippable
+    num_unconvertable_scans = 1
+
+    assert len(sf) == (len(sf1) + num_unconvertable_scans)
 
 
 def test_insert_specscan(spec_filename, db_all):
