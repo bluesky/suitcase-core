@@ -1,3 +1,4 @@
+from bluesky.tests.conftest import RE
 import uuid
 import pytest
 from metadatastore.mds import MDS
