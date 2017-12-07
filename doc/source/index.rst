@@ -62,3 +62,34 @@ expedient and simple way to export data. These files can easily be rearranged
 and "translated" into other HDF5 layout or other file formats.  Direct support
 for other formats in suitcase itself -- including other HDF5 layouts that are
 standard in certain scientific communities -- is planned.
+
+.. toctree::
+   :hidden:
+   :caption: Data Collection
+
+   bluesky <https://nsls-ii.github.io/bluesky>
+   ophyd <https://nsls-ii.github.io/ophyd>
+
+.. toctree::
+   :hidden:
+   :caption: Data Access and Management
+
+   databroker <https://nsls-ii.github.io/databroker>
+   amostra <https://nsls-ii.github.io/amostra>
+   datamuxer <https://nsls-ii.github.io/datamuxer>
+   suitcase <https://nsls-ii.github.io/suitcase>
+
+.. toctree::
+   :hidden:
+   :caption: Data Analysis
+
+   scikit-beam <http://scikit-beam.github.io/scikit-beam>
+
+.. toctree::
+   :hidden:
+   :caption: GitHub Links
+
+   NSLS-II Repositories <https://github.com/NSLS-II/>
+   Wish List <https://github.com/NSLS-II/wishlist/issues>
+   Bug Reports <https://github.com/NSLS-II/Bug-Reports/issues>
+
