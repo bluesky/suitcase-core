@@ -1,4 +1,4 @@
-from metadatastore.examples.sample_data import temperature_ramp
+from data import temperature_ramp
 from suitcase import nexus
 import tempfile
 import h5py

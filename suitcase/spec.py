@@ -688,7 +688,7 @@ def to_run_start(specscan, validate=False, check_in_broker=False, db=None, **md)
                "".format(specscan.scan_id, specscan.scan_command,
                          _SPEC_SCAN_NAMES))
         raise NotImplementedError(msg)
-    plan_name = _BLUESKY_PLAN_NAMES[_SPEC_SCAN_NAMES.index(specscan.scan_command)]
+    plan_name = _SPEC_SCAN_NAMES[specscan.scan_command]
     run_start_dict = {
         'time': _get_timestamp(specscan.time_from_date),
         'scan_id': specscan.scan_id,
@@ -965,11 +965,13 @@ def to_spec_file_header(start, filepath, baseline_descriptor=None):
 
 _SPEC_1D_COMMAND_TEMPLATE = env.from_string("{{ plan_name }} {{ scan_motor }} {{ start }} {{ stop }} {{ num }} {{ time }}")
 
-_SCANS_WITHOUT_MOTORS = ['ct']
-_SCANS_WITH_MOTORS = ['ascan', 'dscan']
-_SPEC_SCAN_NAMES = _SCANS_WITH_MOTORS + _SCANS_WITHOUT_MOTORS
+_SCANS_WITHOUT_MOTORS = {'ct': 'count'}
+_SCANS_WITH_MOTORS = {'ascan': 'scan', 'dscan': 'rel_scan'}
+_SPEC_SCAN_NAMES = _SCANS_WITHOUT_MOTORS.copy()
+_SPEC_SCAN_NAMES.update(_SCANS_WITH_MOTORS)
 _NOT_IMPLEMENTED_SCAN = 'Other'
-_BLUESKY_PLAN_NAMES = ['dscan', 'ascan', 'ct']
+_BLUESKY_PLAN_NAMES = {v:k for k,v in _SPEC_SCAN_NAMES.items()}
+
 
 _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
 
@@ -1013,7 +1015,7 @@ def _get_plan_name(start):
             "Until this feature is implemented, we will be using the sequence "
             "number as the motor position".format(plan_name))
         return _NOT_IMPLEMENTED_SCAN
-    return _SPEC_SCAN_NAMES[_BLUESKY_PLAN_NAMES.index(plan_name)]
+    return _BLUESKY_PLAN_NAMES[plan_name]
 
 
 def _get_motor_name(start):
