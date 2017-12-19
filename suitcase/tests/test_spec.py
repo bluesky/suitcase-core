@@ -183,11 +183,9 @@ def test_round_trip_from_specfile(spec_filename, db_all):
 
 @pytest.mark.skipif(sys.version_info == (2,7),
                     reason="bluesky related tests need python 3.5, 3.6")
-def test_round_trip_from_run_engine(db_all):
-    from bluesky import RunEngine
+def test_round_trip_from_run_engine(db_all, RE):
     from bluesky.plans import count, scan, relative_scan, inner_product_scan
     from bluesky.examples import motor, det, motor1
-    RE = RunEngine()
     fname = tempfile.NamedTemporaryFile().name
     cb = spec.DocumentToSpec(fname)
     RE.subscribe(cb)

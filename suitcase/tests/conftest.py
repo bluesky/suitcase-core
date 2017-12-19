@@ -2,6 +2,11 @@ import uuid
 import pytest
 from databroker import Broker
 import os
+import sys
+
+if sys.version_info >= (3, 5):
+    from bluesky.tests.conftest import RE
+
 
 AUTH = os.environ.get('MDSTESTWITHAUTH', False)
 
