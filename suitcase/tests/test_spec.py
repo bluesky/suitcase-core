@@ -181,7 +181,7 @@ def test_round_trip_from_specfile(spec_filename, db_all):
     assert len(sf2) > 0
 
 
-@pytest.mark.skipif(sys.version_info == (2,7),
+@pytest.mark.skipif(sys.version_info < (3,5),
                     reason="bluesky related tests need python 3.5, 3.6")
 def test_round_trip_from_run_engine(db_all, RE):
     from bluesky.plans import count, scan, relative_scan, inner_product_scan

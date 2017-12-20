@@ -1,9 +1,13 @@
-from data import temperature_ramp
 from suitcase import nexus
 import tempfile
 import h5py
+import sys
 import numpy as np
 import pytest
+
+if sys.version_info >= (3, 5):
+    from bluesky.plans import count, scan
+    from bluesky.examples import motor, det
 
 
 def shallow_header_verify(hdf_path, header, db, fields=None, stream_name=None, use_uid=True):
@@ -58,6 +62,7 @@ def shallow_header_verify(hdf_path, header, db, fields=None, stream_name=None, u
                 timestamps = np.asarray(f[timestamps_path])
                 assert all(np.diff(timestamps) > 0)
 
+
 def validate_basic_NeXus_structure(hdf_path):
     with h5py.File(hdf_path) as f:
 
@@ -76,13 +81,15 @@ def validate_basic_NeXus_structure(hdf_path):
         # TODO: check that NXdata/@signal points to existing dataset
 
 
-def test_nexus_export_single(db_all):
+@pytest.mark.skipif(sys.version_info < (3,5),
+                    reason="bluesky related tests need python 3.5, 3.6")
+def test_nexus_export_single(db_all, RE):
     """
     Test the NeXus HDF5 export with a single header and
     verify the output is correct
     """
-    mds = db_all.mds
-    temperature_ramp.run(mds)
+    RE.subscribe(db_all.insert)
+    RE(count([det], 5, delay = 1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, db=db_all)
@@ -90,13 +97,15 @@ def test_nexus_export_single(db_all):
     validate_basic_NeXus_structure(fname.name)
 
 
-def test_nexus_export_single_no_uid(db_all):
+@pytest.mark.skipif(sys.version_info < (3,5),
+                    reason="bluesky related tests need python 3.5, 3.6")
+def test_nexus_export_single_no_uid(db_all, RE):
     """
     Test the NeXus HDF5 export with a single header and
     verify the output is correct. No uid is used.
     """
-    mds = db_all.mds
-    temperature_ramp.run(mds)
+    RE.subscribe(db_all.insert)
+    RE(count([det], 5, delay = 1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, use_uid=False, db=db_all)
@@ -104,13 +113,15 @@ def test_nexus_export_single_no_uid(db_all):
     validate_basic_NeXus_structure(fname.name)
 
 
-def test_nexus_export_single_stream_name(db_all):
+@pytest.mark.skipif(sys.version_info < (3,5),
+                    reason="bluesky related tests need python 3.5, 3.6")
+def test_nexus_export_single_stream_name(db_all, RE):
     """
     Test the NeXus HDF5 export with a single header and
     verify the output is correct. No uid is used.
     """
-    mds = db_all.mds
-    temperature_ramp.run(mds)
+    RE.subscribe(db_all.insert)
+    RE(count([det], 5, delay = 1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, stream_name='primary', db=db_all)
@@ -118,13 +129,15 @@ def test_nexus_export_single_stream_name(db_all):
     validate_basic_NeXus_structure(fname.name)
 
 
-def test_nexus_export_with_fields_single(db_all):
+@pytest.mark.skipif(sys.version_info < (3,5),
+                    reason="bluesky related tests need python 3.5, 3.6")
+def test_nexus_export_with_fields_single(db_all, RE):
     """
     Test the NeXus HDF5 export with a single header and
     verify the output is correct; fields kwd is used.
     """
-    mds = db_all.mds
-    temperature_ramp.run(mds)
+    RE.subscribe(db_all.insert)
+    RE(count([det], 5, delay = 1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, fields=['point_dev'], db=db_all)
@@ -132,25 +145,30 @@ def test_nexus_export_with_fields_single(db_all):
     validate_basic_NeXus_structure(fname.name)
 
 
-def test_filter_fields(db_all):
-    mds = db_all.mds
-    temperature_ramp.run(mds)
+@pytest.mark.skipif(sys.version_info < (3,5),
+                    reason="bluesky related tests need python 3.5, 3.6")
+def test_filter_fields(db_all, RE):
+    RE.subscribe(db_all.insert)
+    RE(count([det], 5, delay = 1), owner="Tom")
     hdr = db_all[-1]
-    unwanted_fields = ['point_det']
+    unwanted_fields = ['det']
     out = nexus.filter_fields(hdr, unwanted_fields)
-    #original list is ('point_det', 'boolean_det', 'ccd_det_info', 'Tsam'),
-    # only ('boolean_det', 'ccd_det_info', 'Tsam') left after filtering out
-    assert len(out)==3
+    assert len(out)==0
+    unwanted_fields = ['no-exist-name']
+    out = nexus.filter_fields(hdr, unwanted_fields)
+    assert len(out)==1
 
 
-def test_nexus_export_list(db_all):
+@pytest.mark.skipif(sys.version_info < (3,5),
+                    reason="bluesky related tests need python 3.5, 3.6")
+def test_nexus_export_list(db_all, RE):
     """
     Test the NeXus HDF5 export with a list of headers and
     verify the output is correct
     """
-    mds = db_all.mds
-    temperature_ramp.run(mds)
-    temperature_ramp.run(mds)
+    RE.subscribe(db_all.insert)
+    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 10, delay = 0.1), sample="Cu")
     hdrs = db_all[-2:]
     fname = tempfile.NamedTemporaryFile()
     # test exporting a list of headers
@@ -160,9 +178,11 @@ def test_nexus_export_list(db_all):
         validate_basic_NeXus_structure(fname.name)
 
 
-def test_nexus_runtime_error(db_all):
-    mds = db_all.mds
-    temperature_ramp.run(mds)
+@pytest.mark.skipif(sys.version_info < (3,5),
+                    reason="bluesky related tests need python 3.5, 3.6")
+def test_nexus_runtime_error(db_all, RE):
+    RE.subscribe(db_all.insert)
+    RE(count([det], 5, delay = 1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     if hasattr(hdr, 'db'):
