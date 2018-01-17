@@ -5,7 +5,7 @@ import os
 import sys
 
 if sys.version_info >= (3, 5):
-    from bluesky.tests.conftest import RE
+    from bluesky.tests.conftest import RE, hw
 
 
 AUTH = os.environ.get('MDSTESTWITHAUTH', False)

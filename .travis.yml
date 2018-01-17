@@ -53,6 +53,7 @@ install:
   - source activate testenv
   - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then
       conda install databroker bluesky -c lightsource2-tag;
+      conda update ophyd -c lightsource2-dev;
     else
       pip install singledispatch;
       conda install databroker -c lightsource2-tag;

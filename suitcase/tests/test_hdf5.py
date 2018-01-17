@@ -64,13 +64,14 @@ def shallow_header_verify(hdf_path, header, db, fields=None,
 
 @pytest.mark.skipif(sys.version_info < (3,5),
                     reason="bluesky related tests need python 3.5, 3.6")
-def test_hdf5_export_single(db_all, RE):
+def test_hdf5_export_single(db_all, RE, hw):
     """
     Test the hdf5 export with a single header and
     verify the output is correct
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    hw.motor.delay = 0.1
+    RE(scan([hw.det], hw.motor, -1, 1, 10), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, db=db_all)
@@ -79,13 +80,14 @@ def test_hdf5_export_single(db_all, RE):
 
 @pytest.mark.skipif(sys.version_info < (3,5),
                     reason="bluesky related tests need python 3.5, 3.6")
-def test_hdf5_export_single_no_uid(db_all, RE):
+def test_hdf5_export_single_no_uid(db_all, RE, hw):
     """
     Test the hdf5 export with a single header and
     verify the output is correct. No uid is used.
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    hw.motor.delay = 0.1
+    RE(scan([hw.det], hw.motor, -1, 1, 10), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, use_uid=False, db=db_all)
@@ -94,13 +96,14 @@ def test_hdf5_export_single_no_uid(db_all, RE):
 
 @pytest.mark.skipif(sys.version_info < (3,5),
                     reason="bluesky related tests need python 3.5, 3.6")
-def test_hdf5_export_single_stream_name(db_all, RE):
+def test_hdf5_export_single_stream_name(db_all, RE, hw):
     """
     Test the hdf5 export with a single header and
     verify the output is correct. No uid is used.
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    hw.motor.delay = 0.1
+    RE(scan([hw.det], hw.motor, -1, 1, 10), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, stream_name='primary', db=db_all)
@@ -109,13 +112,14 @@ def test_hdf5_export_single_stream_name(db_all, RE):
 
 @pytest.mark.skipif(sys.version_info < (3,5),
                     reason="bluesky related tests need python 3.5, 3.6")
-def test_hdf5_export_with_fields_single(db_all, RE):
+def test_hdf5_export_with_fields_single(db_all, RE, hw):
     """
     Test the hdf5 export with a single header and
     verify the output is correct; fields kwd is used.
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    hw.motor.delay = 0.1
+    RE(scan([hw.det], hw.motor, -1, 1, 10), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     hdf5.export(hdr, fname.name, fields=['point_dev'])#, db=db_all)
@@ -124,16 +128,18 @@ def test_hdf5_export_with_fields_single(db_all, RE):
 
 @pytest.mark.skipif(sys.version_info < (3,5),
                     reason="bluesky related tests need python 3.5, 3.6")
-def test_filter_fields(db_all, RE):
+def test_filter_fields(db_all, RE, hw):
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    hw.motor.delay = 0.1
+    RE(scan([hw.det], hw.motor, -1, 1, 10), owner="Tom")
     hdr = db_all[-1]
     unwanted_fields = ['det']
     out = hdf5.filter_fields(hdr, unwanted_fields)
-    assert len(out)==0
+    assert len(out)==2 # still two fields left ['motor', 'motor_setpoint']
     unwanted_fields = ['no-exist-name']
     out = hdf5.filter_fields(hdr, unwanted_fields)
-    assert len(out)==1
+    assert len(out)==3  # three fields in total
+
 
 @pytest.mark.skipif(sys.version_info < (3,5),
                     reason="bluesky related tests need python 3.5, 3.6")
