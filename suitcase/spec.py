@@ -875,7 +875,7 @@ def to_stop(specscan, start_uid, validate=False, check_in_broker=False, db=None,
 
     md['exit_status'] = 'success'
     actual_events = len(specscan.scan_data)
-    if specscan.scan_command == _NOT_IMPLEMENTED_SCAN:
+    if specscan.scan_command not in _BLUESKY_PLAN_NAMES:
         # not sure how many events we should have. Assume it exited correctly
         expected_events = actual_events
     elif specscan.scan_command in _SCANS_WITHOUT_MOTORS:
@@ -969,8 +969,10 @@ _SCANS_WITHOUT_MOTORS = {'ct': 'count'}
 _SCANS_WITH_MOTORS = {'ascan': 'scan', 'dscan': 'rel_scan'}
 _SPEC_SCAN_NAMES = _SCANS_WITHOUT_MOTORS.copy()
 _SPEC_SCAN_NAMES.update(_SCANS_WITH_MOTORS)
-_NOT_IMPLEMENTED_SCAN = 'Other'
 _BLUESKY_PLAN_NAMES = {v:k for k,v in _SPEC_SCAN_NAMES.items()}
+
+def get_name(plan_name):
+    return _BLUESKY_PLAN_NAMES.get(plan_name, plan_name)
 
 
 _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""
@@ -1008,19 +1010,13 @@ def _get_acq_time(start, default_value=-1):
 
 def _get_plan_name(start):
     plan_name = start['plan_name']
-    if plan_name not in _BLUESKY_PLAN_NAMES:
-        warnings.warn(
-            "Do not know how to represent {} in SPEC. If you would like this "
-            "feature, request it at https://github.com/NSLS-II/bluesky/issues. "
-            "Until this feature is implemented, we will be using the sequence "
-            "number as the motor position".format(plan_name))
-        return _NOT_IMPLEMENTED_SCAN
-    return _BLUESKY_PLAN_NAMES[plan_name]
+    return get_name(plan_name)
 
 
 def _get_motor_name(start):
     plan_name = _get_plan_name(start)
-    if plan_name == _NOT_IMPLEMENTED_SCAN or plan_name in _SCANS_WITHOUT_MOTORS:
+    if (plan_name not in _BLUESKY_PLAN_NAMES or
+            plan_name in _SCANS_WITHOUT_MOTORS):
         return 'seq_num'
     motor_name = start['motors']
     # We only support a single scanning motor right now.
@@ -1039,7 +1035,8 @@ def _get_motor_name(start):
 def _get_motor_position(start, event):
     plan_name = _get_plan_name(start)
     # make sure we are trying to get the motor position for an implemented scan
-    if plan_name == _NOT_IMPLEMENTED_SCAN or plan_name in _SCANS_WITHOUT_MOTORS:
+    if (plan_name not in _BLUESKY_PLAN_NAMES or
+            plan_name in _SCANS_WITHOUT_MOTORS):
         return event['seq_num']
     motor_name = _get_motor_name(start)
     # make sure we have a motor name that we can get data for. Otherwise we use
@@ -1092,7 +1089,7 @@ def to_spec_scan_header(start, primary_descriptor, baseline_event=None):
     motor_name = _get_motor_name(start)
     acq_time = _get_acq_time(start)
     # can only grab start/stop/num if we are a dscan or ascan.
-    if (scan_command == _NOT_IMPLEMENTED_SCAN or
+    if (scan_command not in _BLUESKY_PLAN_NAMES or
             scan_command in _SCANS_WITHOUT_MOTORS):
         command_args = []
     else:
