@@ -89,7 +89,7 @@ def test_nexus_export_single(db_all, RE):
     verify the output is correct
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, db=db_all)
@@ -105,7 +105,7 @@ def test_nexus_export_single_no_uid(db_all, RE):
     verify the output is correct. No uid is used.
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, use_uid=False, db=db_all)
@@ -121,7 +121,7 @@ def test_nexus_export_single_stream_name(db_all, RE):
     verify the output is correct. No uid is used.
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, stream_name='primary', db=db_all)
@@ -137,7 +137,7 @@ def test_nexus_export_with_fields_single(db_all, RE):
     verify the output is correct; fields kwd is used.
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     nexus.export(hdr, fname.name, fields=['point_dev'], db=db_all)
@@ -149,7 +149,7 @@ def test_nexus_export_with_fields_single(db_all, RE):
                     reason="bluesky related tests need python 3.5, 3.6")
 def test_filter_fields(db_all, RE):
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     hdr = db_all[-1]
     unwanted_fields = ['det']
     out = nexus.filter_fields(hdr, unwanted_fields)
@@ -167,7 +167,7 @@ def test_nexus_export_list(db_all, RE):
     verify the output is correct
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     RE(count([det], 10, delay = 0.1), sample="Cu")
     hdrs = db_all[-2:]
     fname = tempfile.NamedTemporaryFile()
@@ -182,7 +182,7 @@ def test_nexus_export_list(db_all, RE):
                     reason="bluesky related tests need python 3.5, 3.6")
 def test_nexus_runtime_error(db_all, RE):
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     if hasattr(hdr, 'db'):

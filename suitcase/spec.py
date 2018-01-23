@@ -972,7 +972,7 @@ _SPEC_SCAN_NAMES.update(_SCANS_WITH_MOTORS)
 _BLUESKY_PLAN_NAMES = {v:k for k,v in _SPEC_SCAN_NAMES.items()}
 
 def get_name(plan_name):
-    return _BLUESKY_PLAN_NAMES.get(plan_name, plan_name)
+    return _BLUESKY_PLAN_NAMES.get(plan_name, 'Other')
 
 
 _SPEC_SCAN_HEADER_TEMPLATE = env.from_string("""

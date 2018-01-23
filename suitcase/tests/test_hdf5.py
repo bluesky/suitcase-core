@@ -149,7 +149,7 @@ def test_hdf5_export_list(db_all, RE):
     verify the output is correct
     """
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     RE(count([det], 6, delay = 0.1), owner="Ken")
     hdrs = db_all[-2:]
     fname = tempfile.NamedTemporaryFile()
@@ -163,7 +163,7 @@ def test_hdf5_export_list(db_all, RE):
                     reason="bluesky related tests need python 3.5, 3.6")
 def test_hdf5_runtime_error(db_all, RE):
     RE.subscribe(db_all.insert)
-    RE(count([det], 5, delay = 1), owner="Tom")
+    RE(count([det], 5, delay = 0.1), owner="Tom")
     hdr = db_all[-1]
     fname = tempfile.NamedTemporaryFile()
     if hasattr(hdr, 'db'):
