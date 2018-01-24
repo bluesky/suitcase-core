@@ -1,30 +1,47 @@
 import uuid
 import pytest
-from metadatastore.mds import MDS
-from databroker.broker import Broker
+from databroker import Broker
 import os
+import sys
+
+if sys.version_info >= (3, 5):
+    from bluesky.tests.conftest import RE, hw
 
 AUTH = os.environ.get('MDSTESTWITHAUTH', False)
-
 
 @pytest.fixture(params=[1], scope='function')
 def db_all(request):
     '''Provide a function level scoped metadatastore instance talking to
     temporary database on localhost:27017 with focus on v1.
     '''
-    db_name = "mds_testing_disposable_{}".format(str(uuid.uuid4()))
-    test_conf = dict(database=db_name, host='localhost',
-                     port=27017, timezone='US/Eastern',
-                     mongo_user='tom',
-                     mongo_pwd='jerry')
-    #version_v = request.param
-    mds = MDS(test_conf, auth=AUTH)
+    db_name1 = "mds_testing_disposable_{}".format(str(uuid.uuid4()))
+    db_name2 = "mds_testing_disposable_{}".format(str(uuid.uuid4()))
 
-    db = Broker(mds, fs=None)
+    test_config = {
+        'metadatastore': {
+            'module': 'databroker.headersource.mongo',
+            'class': 'MDS',
+            'config': {
+                'host': 'localhost',
+                'port': 27017,
+                'database': db_name1,
+                'timezone': 'US/Eastern'}
+        },
+        'assets': {
+            'module': 'databroker.assets.mongo',
+            'class': 'Registry',
+            'config': {
+                'host': 'localhost',
+                'port': 27017,
+                'database': db_name2}
+        }
+    }
+    db = Broker.from_config(test_config)
 
     def delete_dm():
         print("DROPPING DB")
-        mds._connection.drop_database(db_name)
+        db.mds._connection.drop_database(db_name1)
+        db.mds._connection.drop_database(db_name2)
 
     request.addfinalizer(delete_dm)
 

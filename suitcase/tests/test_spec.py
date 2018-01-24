@@ -3,12 +3,12 @@ from __future__ import absolute_import, print_function, division
 import itertools
 import logging
 import os
+import sys
 import tempfile
 
 import event_model
 import pytest
-from databroker.broker import Broker
-from databroker.core import Header
+from databroker import Header
 from suitcase import spec
 
 stream_handler = logging.StreamHandler()
@@ -94,8 +94,6 @@ def test_spec_to_document(sf, db_all, scan_ids):
     }
     start_uids = list()
 
-    #db_all = Broker(mds_all, fs=None)
-
     for document_name, document in spec.spec_to_document(
             sf, scan_ids=scan_ids, validate=True, db=db_all):
         document = dict(document)
@@ -156,6 +154,7 @@ def _round_trip(specfile_object, db_all, new_specfile_name=None):
         new_specfile_name = tempfile.NamedTemporaryFile().name
 
     document_stream = spec.spec_to_document(specfile_object, db=db_all)
+
     cb = spec.DocumentToSpec(new_specfile_name)
     for doc_name, doc in document_stream:
         # RunEngine.subscribe does the translation of 'start' <->
@@ -182,38 +181,26 @@ def test_round_trip_from_specfile(spec_filename, db_all):
     assert len(sf2) > 0
 
 
-def test_round_trip_from_run_engine(db_all):
-    try:
-        import bluesky
-    except ImportError as ie:
-        raise pytest.skip('ImportError: {0}'.format(ie))
-    # generate a new specfile
-    from bluesky.tests.utils import setup_test_run_engine
+@pytest.mark.skipif(sys.version_info < (3,5),
+                    reason="bluesky related tests need python 3.5, 3.6")
+def test_round_trip_from_run_engine(db_all, RE):
+    from bluesky.plans import count, scan, relative_scan, inner_product_scan
     from bluesky.examples import motor, det, motor1
-    from bluesky.global_state import gs
-    from bluesky.spec_api import dscan, ascan, ct, a2scan
-    RE = setup_test_run_engine()
     fname = tempfile.NamedTemporaryFile().name
     cb = spec.DocumentToSpec(fname)
-    RE.subscribe('all', cb)
-    gs.DETS = [det]
-    RE(dscan(motor, -1, 1, 10))
-    RE(ascan(motor, -1, 1, 10))
-    # add count to hit some lines in
-    #   suitcase.spec:_get_motor_name
-    #   suitcase.spec:_get_motor_position
-    #   suitcase.spec:_get_plan_type
-    RE(ct())
+    RE.subscribe(cb)
+    RE(scan([det], motor, -1, 1, 10), owner="Tom")
+    RE(relative_scan([det], motor, -1, 1, 10))
+    RE(count([det]))
 
-    RE(a2scan(motor, -1, 1, motor1, -1, 1, 10))
+    RE(inner_product_scan([det], 10, motor, -1, 1, motor1, -1, 1))
 
     sf = spec.Specfile(fname)
     sf1 = _round_trip(sf, db_all)
 
     # a2scan is not round trippable
     num_unconvertable_scans = 1
-
-    assert len(sf) == (len(sf1) + num_unconvertable_scans)
+    assert len(sf) == (len(sf1)+ num_unconvertable_scans)
 
 
 def test_insert_specscan(spec_filename, db_all):
@@ -227,7 +214,7 @@ def test_insert_specfile(spec_filename, db_all):
     # Can only insert the spec scans whose type is in the _BLUESKY_PLAN_NAMES
     # list
     scans_expected_to_fail = [scan for scan in specfile if scan.scan_command
-                              not in spec._BLUESKY_PLAN_NAMES]
+                              not in spec._SPEC_SCAN_NAMES]
     suceeded, failed = spec.insert_specfile_into_broker(specfile, db=db_all)
     assert len(scans_expected_to_fail) == len(failed)
 

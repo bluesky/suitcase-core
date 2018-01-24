@@ -12,8 +12,7 @@ import warnings
 import h5py
 import json
 import copy
-from databroker.databroker import fill_event
-from databroker.core import Header
+from databroker import Header
 import copy
 
 
@@ -86,14 +85,14 @@ def export(headers, filename,
 
                 _safe_attrs_assignment(desc_group, descriptor)
 
-                events = list(db.get_events(header, stream_name=descriptor['name']))
+                events = list(db.get_events(header, stream_name=descriptor['name'],
+                                            fill=True))
                 event_times = [e['time'] for e in events]
                 desc_group.create_dataset('time', data=event_times,
                                           compression='gzip', fletcher32=True)
                 data_group = desc_group.create_group('data')
                 if timestamps:
                     ts_group = desc_group.create_group('timestamps')
-                [fill_event(e) for e in events]
 
                 for key, value in data_keys.items():
                     if fields is not None:

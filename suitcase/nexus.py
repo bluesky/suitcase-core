@@ -36,8 +36,7 @@ import re
 import time
 import datetime
 import dateutil.parser
-from databroker.databroker import fill_event
-from databroker.core import Header
+from databroker import Header
 
 # prefix attribute names so we do not accidentally use a NeXus reserved name
 ATTRIBUTE_PREFIX = '_BlueSky_'
@@ -162,7 +161,8 @@ def export(headers, filename,
                 :see: http://download.nexusformat.org/doc/html/classes/base_classes/NXlog.html
                 '''
 
-                events = list(db.get_events(header, stream_name=descriptor['name']))
+                events = list(db.get_events(header, stream_name=descriptor['name'],
+                                            fill=True))
                 event_times = np.array([e['time'] for e in events])
                 start = event_times[0]
                 ds = nxlog.create_dataset(
@@ -170,8 +170,6 @@ def export(headers, filename,
                 ds.attrs['units'] = 's'
                 datetime_string = time.asctime(time.gmtime(start))
                 ds.attrs['start'] = dateutil.parser.parse(datetime_string).isoformat()
-
-                [fill_event(e) for e in events]
 
                 for key, value in data_keys.items():
                     if fields is not None:

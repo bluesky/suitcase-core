@@ -49,12 +49,14 @@ before_install:
 install:
   - export GIT_FULL_HASH=`git rev-parse HEAD`
   - conda update conda
-  - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION databroker numpy h5py coverage event-model doct jinja2 pandas prettytable
+  - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION numpy h5py coverage event-model doct jinja2 pandas prettytable
   - source activate testenv
   - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then
-      conda install bluesky -c lightsource2-tag;
+      conda install databroker bluesky -c lightsource2-tag;
+      conda update ophyd -c lightsource2-dev;
     else
       pip install singledispatch;
+      conda install databroker -c lightsource2-tag;
     fi;
   - pip install codecov
   - python setup.py install
