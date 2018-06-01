@@ -1195,6 +1195,7 @@ class DocumentToSpec(CallbackBase):
         self._has_not_written_scan_header = True
         self._num_events_received = 0
         self._num_baseline_events_received = 0
+        super().__init__()
 
     def start(self, doc):
         """
