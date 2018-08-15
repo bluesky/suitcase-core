@@ -459,7 +459,7 @@ def ingest(fnames, fs=None):
         data.update(header_data_for_scatter_event)
 
         yield 'event', {'descriptor': desc_uid,
-                        'timestamps': {'image': ts},
+                        'timestamps': {k: ts for k in data},
                         'data': data,
                         'time': ts,
                         'seq_num': 1,
