@@ -8,7 +8,7 @@ Scope of a Suitcase
 Suitcases are Highly Specific
 -----------------------------
 
-Suitcase's design philosophy is to make many, tailored suitcases rather
+Suitcase's design philosophy is to make many well-tailored suitcases rather
 than try to fit a large range of functionality into one suitcase.
 
 Each file format is implemented in a separate Python package, named
