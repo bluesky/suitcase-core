@@ -1,4 +1,4 @@
-event-model
+event-model >=1.8.0rc1
 sphinx
 ipython
 matplotlib
