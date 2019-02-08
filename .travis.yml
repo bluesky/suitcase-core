@@ -1,87 +1,11 @@
 language: python
-
 env:
-  global:
-    BUILD_DOCS_BRANCH: master
-    DOCS_SUBDIR: doc/
-    TARGET_DEV_SUBDIR: suitcase/
-    HTML_SUBDIR: build/html
-    DOCS_CONDA_DEPS: "matplotlib"
-    DOCS_PIP_DEPS: "tqdm"
-
-services:
-  - mongodb
-
-addons:
-  apt:
-    sources:
-    - mongodb-3.2-precise
-    packages:
-    - mongodb-org-server
-
-cache:
-  directories:
-    - $HOME/.cache/pip
-
-matrix:
-  include:
-    - python: 2.7
-      env: BUILD_DOCS=false
-    - python: 3.5
-      env: BUILD_DOCS=false
-    - python: 3.6
-      env: BUILD_DOCS=true
-
-before_install:
-  - "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16"
-  - "export DISPLAY=:99.0"
-  # clone conda install/build/upload helper scripts and make them executable
-  - git clone https://github.com/NSLS-II/nsls2-ci ~/scripts
-  - chmod +x ~/scripts/*.sh
-  # install miniconda/anaconda-client/conda-build
-  - . ~/scripts/install-miniconda.sh
-  # remove conda-forge because h5py and hdf5 are broken packages. gzip does not work
-  # if I use the packages from the conda-forge channel
-#  - conda config --remove channels conda-forge --force
-  - . ~/scripts/init-metadatastore.sh
-  - . ~/scripts/init-filestore.sh
-
-install:
-  - export GIT_FULL_HASH=`git rev-parse HEAD`
-  - conda update conda
-  - conda create -n testenv pip pytest python=$TRAVIS_PYTHON_VERSION numpy h5py coverage event-model doct jinja2 pandas prettytable
-  - source activate testenv
-  - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then
-      conda install databroker bluesky -c lightsource2-tag;
-      conda update ophyd -c lightsource2-dev;
-    else
-      pip install singledispatch;
-      conda install databroker -c lightsource2-tag;
-    fi;
-  - pip install codecov
-  - python setup.py install
-  # Need to clean the python build directory (and other cruft) or pytest is
-  # going to find the build directory and get confused why there are two sets
-  # of every test file
-  - git clean -xfd
-
+    global:
+    # Doctr deploy key for NSLS-II/NSLS-II.github.io
+    - secure: "Nx1KEY+bpmTCffPYKiuN+93RRFKEzhQPGSHSzzs0E4+u9Oii/iAP7N8d5VTHORgPv988/w/t6qeHrJF8W/9BoF2f9KwE1PW6JNGfAkMWScAolOReBRaT9kYLD6m4GqERy8zHCjUynebyG/GVjKVL6szLn5FXVjm85TRlkMlqFAi136Nt9URF2wm+jChe6qgn+MiwKh6P7qB+xHSKAZbh/EIh9zFIWywPy7xCAs18GcWwfOeAXMp+ByMHaIlqtMtj8SPTaRBNmXC+3Sg4WNfr0xxPMGdWX2VfX0DuMYUkWtObchQonVtm/Yqrq3axD5EMkZO7mUHUCGOkdpmhToJ/KWv23+LTMq9Wk1lt3QILqcpqMioT3FTQIR4GzHrgHMVz9g5bvx4oGjGfFfPBQm1eMERZeKAAlnUwKgofyQtOqFFmpvP2lU7n6UzZ5TTOzMGGxZjixagusKYMDxhuv9pk73Ky8JmEl8Yvcg/rGFfdnklohIO6kQS35RdSS4rzFEqc8vKljUF5lXaIxA+y/sw0CGGxXLI6+RG6ww/VX7PLX2OSkXgzmF/aKOtxkVGQXy0USyf63JVsLbGubdx8knkf0wTKaEq7LpHMDk11abmqvktFwHgSGWFPzZpJU96axUPzx7hQpnEDGrVzQ55jt9XUOlsINEj+1cEM8q8/sRdX1O0="
 
 script:
-  - coverage run run_tests.py
-  - coverage report -m
-  - |
-    if [ $BUILD_DOCS == true ]; then
-      source ~/scripts/make-docs.sh
-    fi
-
-after_success:
-  - codecov
-  - |
-    if [[ $TRAVIS_PULL_REQUEST == false && $TRAVIS_REPO_SLUG == 'NSLS-II/suitcase' && $BUILD_DOCS == true && $TRAVIS_BRANCH == 'master' ]]; then
-      echo "Adding encrypted deployment key for uploading docs"
-      openssl aes-256-cbc -K $encrypted_1e6da8cdbab8_key -iv $encrypted_1e6da8cdbab8_iv -in deploy_key_suitcase.enc -out deploy_key_suitcase -d
-      eval `ssh-agent -s`
-      chmod 600 deploy_key_suitcase
-      ssh-add deploy_key_suitcase
-      source ~/scripts/push-docs.sh
-    fi
+    - set -e
+    - make -C docs html
+    - pip install doctr
+    - doctr deploy --built-docs docs/build/html --deploy-repo NSLS-II/NSLS-II.github.io suitcase
