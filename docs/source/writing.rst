@@ -60,10 +60,10 @@ Create the package with cookiecutter
 
    .. code-block:: bash
 
-   cookiecutter https://github.com/NSLS-II/suitcase-cookiecutter
+      cookiecutter https://github.com/NSLS-II/suitcase-cookiecutter
 
-   subproject_name [ex: tiff, spec, pizza-box]: my-special-format
-   subpackage_name [my_special_format]: 
+      subproject_name [ex: tiff, spec, pizza-box]: my-special-format
+      subpackage_name [my_special_format]: 
 
    This will have created a new directory named ``suitcase-my-special-format``
    with all the "scaffolding" of a working Python package for suitcase.
@@ -72,17 +72,17 @@ Create the package with cookiecutter
 
    .. code-block:: bash
 
-   git init
-   git add .
-   git commit -m "Initial commit"
+      git init
+      git add .
+      git commit -m "Initial commit"
 
 #. Install the package and its development requirements.
 
    .. code-block:: bash
 
-   cd suitcase-my-special-format
-   pip install -e .
-   pip install -r requirements-dev.txt
+      cd suitcase-my-special-format
+      pip install -e .
+      pip install -r requirements-dev.txt
 
 Write the Serializer
 --------------------
