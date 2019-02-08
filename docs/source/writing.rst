@@ -131,8 +131,15 @@ Here is a sketch of a :class:`Serializer`
 
         @property
         def artifacts(self):
-            # The manager's artifacts attribute is itself a property, and we must
-            # access it anew each time to be sure to get the latest content.
+            # The 'artifacts' are the manager's way to exposing to the user a
+            # way to get at the resources that were created. For
+            # `MultiFileManager`, the artifacts are filenames.  For
+            # `MemoryBuffersManager`, the artifacts are the buffer objects
+            # themselves. The Serializer, in turn, exposes that to the user here.
+            #
+            # This must be a property, not a plain attribute, because the
+            # manager's `artifacts` attribute is also a property, and we must
+            # access it anew each time to be sure to get the latest contents.
             return self._manager.artifacts
 
         def close(self):
