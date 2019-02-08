@@ -6,7 +6,7 @@ env:
 
 install:
   # Install requirements for building docs.
-  - pip install requirements-dev.txt
+  - pip install -r requirements-dev.txt
 
 python:
   - 3.6
