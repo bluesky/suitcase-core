@@ -4,6 +4,10 @@ env:
     # Doctr deploy key for NSLS-II/NSLS-II.github.io
     - secure: "Nx1KEY+bpmTCffPYKiuN+93RRFKEzhQPGSHSzzs0E4+u9Oii/iAP7N8d5VTHORgPv988/w/t6qeHrJF8W/9BoF2f9KwE1PW6JNGfAkMWScAolOReBRaT9kYLD6m4GqERy8zHCjUynebyG/GVjKVL6szLn5FXVjm85TRlkMlqFAi136Nt9URF2wm+jChe6qgn+MiwKh6P7qB+xHSKAZbh/EIh9zFIWywPy7xCAs18GcWwfOeAXMp+ByMHaIlqtMtj8SPTaRBNmXC+3Sg4WNfr0xxPMGdWX2VfX0DuMYUkWtObchQonVtm/Yqrq3axD5EMkZO7mUHUCGOkdpmhToJ/KWv23+LTMq9Wk1lt3QILqcpqMioT3FTQIR4GzHrgHMVz9g5bvx4oGjGfFfPBQm1eMERZeKAAlnUwKgofyQtOqFFmpvP2lU7n6UzZ5TTOzMGGxZjixagusKYMDxhuv9pk73Ky8JmEl8Yvcg/rGFfdnklohIO6kQS35RdSS4rzFEqc8vKljUF5lXaIxA+y/sw0CGGxXLI6+RG6ww/VX7PLX2OSkXgzmF/aKOtxkVGQXy0USyf63JVsLbGubdx8knkf0wTKaEq7LpHMDk11abmqvktFwHgSGWFPzZpJU96axUPzx7hQpnEDGrVzQ55jt9XUOlsINEj+1cEM8q8/sRdX1O0="
 
+matrix:
+  - python: 3.6
+  - python: 3.7
+
 script:
     - set -e
     - make -C docs html
