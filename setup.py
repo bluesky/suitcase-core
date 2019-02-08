@@ -1,7 +1,6 @@
 from os import path
-from setuptools import setup, find_packages
+from setuptools import setup
 import sys
-import versioneer
 
 
 # NOTE: This file must remain Python 2 compatible for the foreseeable future,
@@ -35,14 +34,13 @@ with open(path.join(here, 'requirements.txt')) as requirements_file:
 
 setup(
     name='suitcase',
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version='0.8.0',
     description="Exporters / serializers for bluesky documents.",
     long_description=readme,
     author="Brookhaven National Lab",
     author_email='dallan@bnl.gov',
     url='https://github.com/NSLS-II/suitcase',
-    packages=find_packages(exclude=['docs', 'tests']),
+    packages=[],  # This is a namespace package with dependencies and docs.
     entry_points={
         'console_scripts': [
             # 'some.module:some_function',
