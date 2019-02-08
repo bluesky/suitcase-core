@@ -3,6 +3,24 @@ from setuptools import setup
 import sys
 
 
+class IncompatiblePackageError(Exception):
+    pass
+
+# Make sure that the unrelated package by the name 'suitcase' is *not*
+# installed because if it is installed it will break this suitcase's namespace
+# package scheme.
+try:
+    import suitcase
+except ImportError:
+    pass
+else:
+    if hasattr(suitcase, '__file__'):
+        raise IncompatiblePackageError(
+            "The package 'suitcase' must be uninstalled before "
+            "'suitcase-core' can be installed. The package distributed under "
+            "the name 'suitcase' is an unrelated project, and it creates "
+            "conflicts with suitcase-core's namespace packages.")
+
 # NOTE: This file must remain Python 2 compatible for the foreseeable future,
 # to ensure that we error out properly for people with outdated setuptools
 # and/or pip.
@@ -33,7 +51,7 @@ with open(path.join(here, 'requirements.txt')) as requirements_file:
 
 
 setup(
-    name='suitcase',
+    name='suitcase-core',
     version='0.8.0',
     description="Exporters / serializers for bluesky documents.",
     long_description=readme,
