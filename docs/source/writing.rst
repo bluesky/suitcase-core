@@ -145,6 +145,19 @@ Here is a sketch of a :class:`Serializer`
         def close(self):
             self._manager.close()
 
+        # These methods enable the Serializer to be used as a context manager:
+        #
+        # with Serializer(...) as serializer:
+        #     ...
+        #
+        # which always calls close() on exit from the with block.
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exception_details):
+            self.close()
+
         # Each of the methods below corresponds to a document type. As
         # documents flow in through Serializer.__call__, the DocumentRouter base
         # class will forward them to the method with the name corresponding to
