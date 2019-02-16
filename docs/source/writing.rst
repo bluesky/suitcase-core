@@ -226,6 +226,22 @@ in particular:
    Additionally, the details can vary enough from one :class:`Serializer` that
    inheritence tends to get messy.
 
+Add an export function
+----------------------
+
+This is just a simple wrapper around the :class:`Serializer`. It takes a
+generator of ``(name, doc)`` pairs and pushes them through the
+:class:`Serializer`.
+
+.. code-block:: python
+
+   def export(gen, directory, file_prefix='{uid}-', **kwargs):
+       with Serializer(directory, file_prefix, **kwargs) as serializer:
+           for item in gen:
+               serializer(*item)
+
+       return serializer.artifacts
+
 Test the Serializer
 -------------------
 
