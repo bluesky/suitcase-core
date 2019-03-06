@@ -62,4 +62,4 @@ Available:
 Planned:
 
 * suitcase-bson
-* suitcase-cbor
+* suitcase-msgpack
