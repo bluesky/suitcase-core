@@ -61,6 +61,10 @@ Create the package with cookiecutter
 
 #. Use cookiecutter to create a new suitcase package. Just follow the prompts.
 
+   .. note:: `suitcase-cookiecutter <https://github.com/bluesky/suitcase-
+             cookiecutter/blob/master/README.md>`_ is a template for creating
+             a suitcase subpackage.
+
    .. code-block:: bash
 
       cookiecutter https://github.com/NSLS-II/suitcase-cookiecutter
