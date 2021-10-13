@@ -2,6 +2,10 @@
 Release History
 ===============
 
+Release 0.9.1 (2021-10-13)
+
+- Fixed version mismatch in config
+
 Release 0.9.0 (2021-10-13)
 --------------------------
 

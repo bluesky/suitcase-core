@@ -52,7 +52,7 @@ with open(path.join(here, 'requirements.txt')) as requirements_file:
 
 setup(
     name='suitcase-core',
-    version='0.8.0',
+    version='0.9.1',
     description="Exporters / serializers for bluesky documents.",
     long_description=readme,
     author="Brookhaven National Lab",
