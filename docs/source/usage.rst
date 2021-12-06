@@ -57,9 +57,8 @@ Simple Export
 
    .. code-block:: python
 
-      export(docs, 'path/to/files', '{plan_name}-{motors}-')
-      export(docs, 'path/to/files', '{time:%%Y-%%m-%%d_%%H:%%M}-') # timestamp
-      export(docs, 'path/to/files', '{sample_name}')
+      export(docs, 'path/to/files', '{start[plan_name]}-{start[motors]}-')
+      export(docs, 'path/to/files', '{start[sample_name]}')
 
    The last example assumes that ``sample_name`` was included in the metadata
    when the data was acquired.
